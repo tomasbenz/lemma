@@ -31,23 +31,27 @@ import { cn } from '@/lib/utils'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
 import type { CurrentUser } from '@/lib/auth/get-current-user'
+import type { TurnoActivo } from '@/lib/queries/turnos'
 import { useCarrito } from '../_hooks/use-carrito'
 import { useCatalogData } from '../_hooks/use-catalog-data'
 import { CarritoPanel } from './carrito-panel'
 import { SelectorVariantes } from './selector-variantes'
 import { ModalCobro } from './modal-cobro'
 import { ModalGuardarPedido } from './modal-guardar-pedido'
+import { BannerTurno } from './banner-turno'
 
 type CajaViewProps = {
   user: CurrentUser
   recargoManualHabilitado: boolean
   recargo105Habilitado: boolean
+  turnoActivo: TurnoActivo
 }
 
 export function CajaView({
   user,
   recargoManualHabilitado,
   recargo105Habilitado,
+  turnoActivo,
 }: CajaViewProps) {
   const catalog = useCatalogData()
 
@@ -103,6 +107,7 @@ export function CajaView({
       user={user}
       recargoManualHabilitado={recargoManualHabilitado}
       recargo105Habilitado={recargo105Habilitado}
+      turnoActivo={turnoActivo}
       isOfflineSource={
         catalog.source === 'local' && catalog.serverFetchSettled
       }
@@ -121,6 +126,7 @@ function CajaViewInner({
   user,
   recargoManualHabilitado,
   recargo105Habilitado,
+  turnoActivo,
   isOfflineSource,
 }: {
   productos: ProductoCaja[]
@@ -128,6 +134,7 @@ function CajaViewInner({
   user: CurrentUser
   recargoManualHabilitado: boolean
   recargo105Habilitado: boolean
+  turnoActivo: TurnoActivo
   isOfflineSource: boolean
 }) {
   const router = useRouter()
@@ -316,6 +323,9 @@ function CajaViewInner({
 
   return (
     <>
+      {/* Banner del turno activo: muestra base + apertura + botón cerrar. */}
+      <BannerTurno turno={turnoActivo} />
+
       {/*
         Indicador discreto cuando los datos vienen de cache local (offline).
         Se posiciona arriba del search bar para que vendedora sepa que está

@@ -19,6 +19,7 @@ import {
   Inbox,
   UsersRound,
   Tags,
+  History,
 } from 'lucide-react'
 
 import {
@@ -97,6 +98,7 @@ function getMenuItems(
       { title: 'Productos', url: '/admin/productos', icon: Package },
       { title: 'Clientes', url: '/admin/clientes', icon: Users },
       { title: 'Ventas', url: '/admin/ventas', icon: Receipt },
+      { title: 'Turnos', url: '/admin/turnos', icon: History },
       { title: 'Reportes', url: '/admin/reportes', icon: BarChart3 },
       { title: 'Usuarios', url: '/admin/usuarios', icon: UsersRound },
       { title: 'Catálogos', url: '/admin/catalogos', icon: Tags },

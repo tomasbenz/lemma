@@ -1088,6 +1088,92 @@ export type Database = {
           },
         ]
       }
+      turnos_caja: {
+        Row: {
+          abierto_at: string
+          base_inicial: number
+          caja_id: string
+          cerrado_at: string | null
+          created_at: string
+          diferencia: number | null
+          empresa_id: string
+          forzado_por_admin: boolean
+          id: string
+          motivo_forzado: string | null
+          nota_apertura: string | null
+          nota_cierre: string | null
+          total_declarado: number | null
+          updated_at: string
+          usuario_apertura_id: string
+          usuario_cierre_id: string | null
+        }
+        Insert: {
+          abierto_at?: string
+          base_inicial: number
+          caja_id: string
+          cerrado_at?: string | null
+          created_at?: string
+          diferencia?: number | null
+          empresa_id: string
+          forzado_por_admin?: boolean
+          id?: string
+          motivo_forzado?: string | null
+          nota_apertura?: string | null
+          nota_cierre?: string | null
+          total_declarado?: number | null
+          updated_at?: string
+          usuario_apertura_id: string
+          usuario_cierre_id?: string | null
+        }
+        Update: {
+          abierto_at?: string
+          base_inicial?: number
+          caja_id?: string
+          cerrado_at?: string | null
+          created_at?: string
+          diferencia?: number | null
+          empresa_id?: string
+          forzado_por_admin?: boolean
+          id?: string
+          motivo_forzado?: string | null
+          nota_apertura?: string | null
+          nota_cierre?: string | null
+          total_declarado?: number | null
+          updated_at?: string
+          usuario_apertura_id?: string
+          usuario_cierre_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turnos_caja_caja_id_fkey"
+            columns: ["caja_id"]
+            isOneToOne: false
+            referencedRelation: "cajas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnos_caja_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnos_caja_usuario_apertura_id_fkey"
+            columns: ["usuario_apertura_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnos_caja_usuario_cierre_id_fkey"
+            columns: ["usuario_cierre_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           activo: boolean
@@ -1223,6 +1309,7 @@ export type Database = {
           sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
+          turno_id: string | null
           ultimo_error_facturacion: string | null
           ultimo_intento_facturacion_at: string | null
           ultimo_request_log_id: number | null
@@ -1253,6 +1340,7 @@ export type Database = {
           sucursal_id?: string | null
           tipo_factura?: Database["public"]["Enums"]["tipo_factura"]
           total?: number
+          turno_id?: string | null
           ultimo_error_facturacion?: string | null
           ultimo_intento_facturacion_at?: string | null
           ultimo_request_log_id?: number | null
@@ -1283,6 +1371,7 @@ export type Database = {
           sucursal_id?: string | null
           tipo_factura?: Database["public"]["Enums"]["tipo_factura"]
           total?: number
+          turno_id?: string | null
           ultimo_error_facturacion?: string | null
           ultimo_intento_facturacion_at?: string | null
           ultimo_request_log_id?: number | null
@@ -1317,6 +1406,13 @@ export type Database = {
             columns: ["sucursal_id"]
             isOneToOne: false
             referencedRelation: "sucursales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos_caja"
             referencedColumns: ["id"]
           },
           {
@@ -1501,6 +1597,37 @@ export type Database = {
       }
     }
     Functions: {
+      abrir_turno: {
+        Args: {
+          p_base_inicial: number
+          p_caja_id: string
+          p_nota_apertura?: string
+        }
+        Returns: {
+          abierto_at: string
+          base_inicial: number
+          caja_id: string
+          cerrado_at: string | null
+          created_at: string
+          diferencia: number | null
+          empresa_id: string
+          forzado_por_admin: boolean
+          id: string
+          motivo_forzado: string | null
+          nota_apertura: string | null
+          nota_cierre: string | null
+          total_declarado: number | null
+          updated_at: string
+          usuario_apertura_id: string
+          usuario_cierre_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "turnos_caja"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ajustar_stock: {
         Args: {
           p_delta: number
@@ -1582,6 +1709,14 @@ export type Database = {
         }
         Returns: Json
       }
+      cerrar_turno: {
+        Args: {
+          p_nota_cierre?: string
+          p_total_declarado: number
+          p_turno_id: string
+        }
+        Returns: Json
+      }
       editar_pedido: {
         Args: {
           p_ip?: string
@@ -1620,6 +1755,33 @@ export type Database = {
         }
         Returns: Json
       }
+      forzar_cierre_turno: {
+        Args: { p_motivo: string; p_turno_id: string }
+        Returns: {
+          abierto_at: string
+          base_inicial: number
+          caja_id: string
+          cerrado_at: string | null
+          created_at: string
+          diferencia: number | null
+          empresa_id: string
+          forzado_por_admin: boolean
+          id: string
+          motivo_forzado: string | null
+          nota_apertura: string | null
+          nota_cierre: string | null
+          total_declarado: number | null
+          updated_at: string
+          usuario_apertura_id: string
+          usuario_cierre_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "turnos_caja"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_default_caja_id: { Args: { p_empresa_id: string }; Returns: string }
       get_default_sucursal_id: {
         Args: { p_empresa_id: string }
@@ -1643,6 +1805,33 @@ export type Database = {
         Returns: Json
       }
       normalizar_nombre: { Args: { texto: string }; Returns: string }
+      obtener_turno_activo: {
+        Args: { p_caja_id: string }
+        Returns: {
+          abierto_at: string
+          base_inicial: number
+          caja_id: string
+          cerrado_at: string | null
+          created_at: string
+          diferencia: number | null
+          empresa_id: string
+          forzado_por_admin: boolean
+          id: string
+          motivo_forzado: string | null
+          nota_apertura: string | null
+          nota_cierre: string | null
+          total_declarado: number | null
+          updated_at: string
+          usuario_apertura_id: string
+          usuario_cierre_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "turnos_caja"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       persistir_cae_y_marcar_emitida: {
         Args: {
           p_cae: string
@@ -1662,6 +1851,10 @@ export type Database = {
       }
       reporte_ventas_agregado: {
         Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      resumen_turno: {
+        Args: { p_turno_id: string }
         Returns: Json
       }
       rol_actual: {
