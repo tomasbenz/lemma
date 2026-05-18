@@ -104,7 +104,7 @@ export const configuracionSchema = z.object({
     .max(9999, 'Máximo 9999'),
 
   puntos_venta: z
-    .array(z.coerce.number().int().min(1).max(99999))
+    .array(z.coerce.number().int().min(1).max(9999))
     .min(1, 'Debe haber al menos un punto de venta')
     .max(20, 'Máximo 20 puntos de venta'),
 
@@ -113,4 +113,11 @@ export const configuracionSchema = z.object({
     .int('Debe ser un número entero')
     .min(0, 'No puede ser negativo')
     .max(9999, 'Máximo 9999'),
-})
+}).refine(
+  (data) => data.puntos_venta.includes(data.punto_venta_default),
+  {
+    message:
+      'El punto de venta default debe estar incluido en los puntos de venta habilitados',
+    path: ['punto_venta_default'],
+  }
+)

@@ -75,15 +75,27 @@ test('configuracionSchema — puntos_venta vacío rechaza', () => {
 })
 
 test('configuracionSchema — punto_venta_default min 1, max 9999', () => {
-  const r1 = configuracionSchema.safeParse({ ...base, punto_venta_default: 0 })
-  const r2 = configuracionSchema.safeParse({ ...base, punto_venta_default: 1 })
+  // Para cada caso aseguramos que el punto esté en puntos_venta (sino el
+  // refine cruzado dispararía y enmascararía el chequeo de rango).
+  const r1 = configuracionSchema.safeParse({
+    ...base,
+    punto_venta_default: 0,
+    puntos_venta: [0, 1],
+  })
+  const r2 = configuracionSchema.safeParse({
+    ...base,
+    punto_venta_default: 1,
+    puntos_venta: [1],
+  })
   const r3 = configuracionSchema.safeParse({
     ...base,
     punto_venta_default: 9999,
+    puntos_venta: [9999],
   })
   const r4 = configuracionSchema.safeParse({
     ...base,
     punto_venta_default: 10_000,
+    puntos_venta: [10_000],
   })
   assert.equal(r1.success, false)
   assert.equal(r2.success, true)
@@ -108,31 +120,65 @@ test('configuracionSchema — puntos_venta acepta string-numérico (coerce)', ()
   if (r.success) assert.deepEqual(r.data.puntos_venta, [1, 2])
 })
 
-test('configuracionSchema — INCONSISTENCIA conocida: max distinto entre default y array', () => {
-  // BUG documentado (no corregido): punto_venta_default máximo es 9999 pero
-  // los elementos de puntos_venta aceptan hasta 99999. AFIP usa 4 dígitos (1-9999)
-  // según el spec WSFE, así que el límite de puntos_venta tendría que ser 9999.
-  // Test documenta el comportamiento actual; cuando se corrija, este test va a
-  // tener que actualizarse.
-  const r = configuracionSchema.safeParse({
+test('configuracionSchema — puntos_venta cada elemento max 9999 (alineado con AFIP)', () => {
+  // AFIP WSFE acepta puntos de venta 1-9999 (4 dígitos). El máximo del array
+  // tiene que coincidir con el de punto_venta_default.
+  const r9999 = configuracionSchema.safeParse({
     ...base,
     punto_venta_default: 1,
-    puntos_venta: [1, 99999],
+    puntos_venta: [1, 9999],
   })
-  assert.equal(r.success, true)
+  const r10000 = configuracionSchema.safeParse({
+    ...base,
+    punto_venta_default: 1,
+    puntos_venta: [1, 10_000],
+  })
+  assert.equal(r9999.success, true)
+  assert.equal(r10000.success, false)
 })
 
 test('configuracionSchema — puntos_venta máximo 20 elementos', () => {
   const r1 = configuracionSchema.safeParse({
     ...base,
+    punto_venta_default: 1,
     puntos_venta: Array.from({ length: 20 }, (_, i) => i + 1),
   })
   const r2 = configuracionSchema.safeParse({
     ...base,
+    punto_venta_default: 1,
     puntos_venta: Array.from({ length: 21 }, (_, i) => i + 1),
   })
   assert.equal(r1.success, true)
   assert.equal(r2.success, false)
+})
+
+// ============================================================================
+// punto_venta_default debe estar incluido en puntos_venta (refine)
+// ============================================================================
+
+test('configuracionSchema — punto_venta_default incluido en puntos_venta pasa', () => {
+  const r = configuracionSchema.safeParse({
+    ...base,
+    punto_venta_default: 2,
+    puntos_venta: [1, 2, 3],
+  })
+  assert.equal(r.success, true)
+})
+
+test('configuracionSchema — punto_venta_default NO incluido en puntos_venta rechaza', () => {
+  const r = configuracionSchema.safeParse({
+    ...base,
+    punto_venta_default: 3,
+    puntos_venta: [1, 2],
+  })
+  assert.equal(r.success, false)
+  if (!r.success) {
+    const issue = r.error.issues.find((i) =>
+      i.path.includes('punto_venta_default')
+    )
+    assert.ok(issue, 'Esperaba un issue en el path punto_venta_default')
+    assert.match(issue!.message, /incluido en los puntos de venta/i)
+  }
 })
 
 // ============================================================================
