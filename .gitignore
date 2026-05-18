@@ -53,3 +53,6 @@ public/swe-worker-*.js
 
 # Scripts locales de smoke test / debug (no commitear)
 /scripts
+
+# Outputs de introspección / diff (análisis local)
+/tmp

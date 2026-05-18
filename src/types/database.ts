@@ -21,7 +21,7 @@ export type Database = {
           created_at: string
           duracion_ms: number
           empresa_id: string
-          endpoint: string
+          endpoint: string | null
           error_clase: string | null
           error_mensaje: string | null
           http_status: number | null
@@ -39,9 +39,9 @@ export type Database = {
           codigos_error?: number[] | null
           contexto?: Json | null
           created_at?: string
-          duracion_ms: number
+          duracion_ms?: number
           empresa_id: string
-          endpoint: string
+          endpoint?: string | null
           error_clase?: string | null
           error_mensaje?: string | null
           http_status?: number | null
@@ -61,7 +61,7 @@ export type Database = {
           created_at?: string
           duracion_ms?: number
           empresa_id?: string
-          endpoint?: string
+          endpoint?: string | null
           error_clase?: string | null
           error_mensaje?: string | null
           http_status?: number | null
@@ -133,7 +133,7 @@ export type Database = {
         Row: {
           accion: string
           created_at: string
-          detalle: Json | null
+          detalle: Json
           empresa_id: string | null
           entidad: string
           entidad_id: string | null
@@ -148,7 +148,7 @@ export type Database = {
         Insert: {
           accion: string
           created_at?: string
-          detalle?: Json | null
+          detalle?: Json
           empresa_id?: string | null
           entidad: string
           entidad_id?: string | null
@@ -163,7 +163,7 @@ export type Database = {
         Update: {
           accion?: string
           created_at?: string
-          detalle?: Json | null
+          detalle?: Json
           empresa_id?: string | null
           entidad?: string
           entidad_id?: string | null
@@ -188,6 +188,51 @@ export type Database = {
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
+          },
+        ]
+      }
+      cajas: {
+        Row: {
+          activa: boolean
+          created_at: string
+          eliminada_at: string | null
+          id: string
+          nombre: string
+          sucursal_id: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          eliminada_at?: string | null
+          id?: string
+          nombre: string
+          sucursal_id: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          eliminada_at?: string | null
+          id?: string
+          nombre?: string
+          sucursal_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cajas_sucursal_id_fkey"
+            columns: ["sucursal_id"]
+            isOneToOne: false
+            referencedRelation: "sucursales"
             referencedColumns: ["id"]
           },
         ]
@@ -293,6 +338,7 @@ export type Database = {
       clientes: {
         Row: {
           activo: boolean
+          codigo_postal: string | null
           cond_iva: Database["public"]["Enums"]["cond_iva"]
           consentimiento_marketing: boolean
           created_at: string
@@ -313,6 +359,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          codigo_postal?: string | null
           cond_iva?: Database["public"]["Enums"]["cond_iva"]
           consentimiento_marketing?: boolean
           created_at?: string
@@ -333,6 +380,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          codigo_postal?: string | null
           cond_iva?: Database["public"]["Enums"]["cond_iva"]
           consentimiento_marketing?: boolean
           created_at?: string
@@ -358,6 +406,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "clientes_empresa_id_fkey"
@@ -439,7 +494,7 @@ export type Database = {
           {
             foreignKeyName: "configuracion_empresa_id_fkey"
             columns: ["empresa_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
@@ -449,6 +504,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracion_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -493,94 +555,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      sucursales: {
-        Row: {
-          activa: boolean
-          created_at: string
-          direccion: string | null
-          eliminada_at: string | null
-          empresa_id: string
-          id: string
-          localidad: string | null
-          nombre: string
-          provincia: string | null
-          telefono: string | null
-          updated_at: string
-        }
-        Insert: {
-          activa?: boolean
-          created_at?: string
-          direccion?: string | null
-          eliminada_at?: string | null
-          empresa_id: string
-          id?: string
-          localidad?: string | null
-          nombre: string
-          provincia?: string | null
-          telefono?: string | null
-          updated_at?: string
-        }
-        Update: {
-          activa?: boolean
-          created_at?: string
-          direccion?: string | null
-          eliminada_at?: string | null
-          empresa_id?: string
-          id?: string
-          localidad?: string | null
-          nombre?: string
-          provincia?: string | null
-          telefono?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sucursales_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cajas: {
-        Row: {
-          activa: boolean
-          created_at: string
-          eliminada_at: string | null
-          id: string
-          nombre: string
-          sucursal_id: string
-          updated_at: string
-        }
-        Insert: {
-          activa?: boolean
-          created_at?: string
-          eliminada_at?: string | null
-          id?: string
-          nombre: string
-          sucursal_id: string
-          updated_at?: string
-        }
-        Update: {
-          activa?: boolean
-          created_at?: string
-          eliminada_at?: string | null
-          id?: string
-          nombre?: string
-          sucursal_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cajas_sucursal_id_fkey"
-            columns: ["sucursal_id"]
-            isOneToOne: false
-            referencedRelation: "sucursales"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       facturas: {
         Row: {
@@ -658,6 +632,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "facturas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "facturas_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -667,15 +648,8 @@ export type Database = {
           {
             foreignKeyName: "facturas_venta_id_fkey"
             columns: ["venta_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "ventas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "facturas_venta_id_fkey"
-            columns: ["venta_id"]
-            isOneToOne: false
-            referencedRelation: "ventas_con_resumen"
             referencedColumns: ["id"]
           },
         ]
@@ -754,13 +728,6 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "facturas_afip_venta_id_fkey"
-            columns: ["venta_id"]
-            isOneToOne: false
-            referencedRelation: "ventas_con_resumen"
-            referencedColumns: ["id"]
-          },
         ]
       }
       items_venta: {
@@ -828,13 +795,6 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "items_venta_venta_id_fkey"
-            columns: ["venta_id"]
-            isOneToOne: false
-            referencedRelation: "ventas_con_resumen"
-            referencedColumns: ["id"]
-          },
         ]
       }
       medios_pago_venta: {
@@ -880,13 +840,6 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "medios_pago_venta_venta_id_fkey"
-            columns: ["venta_id"]
-            isOneToOne: false
-            referencedRelation: "ventas_con_resumen"
-            referencedColumns: ["id"]
-          },
         ]
       }
       mp_webhook_events: {
@@ -895,39 +848,39 @@ export type Database = {
           error: string | null
           event_id: string
           id: number
-          payload: Json
+          payload: Json | null
           procesado: boolean
           procesado_at: string | null
           received_at: string
-          resource_id: string
+          resource_id: string | null
           retry_count: number
-          topic: string
+          topic: string | null
         }
         Insert: {
           empresa_id?: string | null
           error?: string | null
           event_id: string
           id?: number
-          payload: Json
+          payload?: Json | null
           procesado?: boolean
           procesado_at?: string | null
           received_at?: string
-          resource_id: string
+          resource_id?: string | null
           retry_count?: number
-          topic: string
+          topic?: string | null
         }
         Update: {
           empresa_id?: string | null
           error?: string | null
           event_id?: string
           id?: number
-          payload?: Json
+          payload?: Json | null
           procesado?: boolean
           procesado_at?: string | null
           received_at?: string
-          resource_id?: string
+          resource_id?: string | null
           retry_count?: number
-          topic?: string
+          topic?: string | null
         }
         Relationships: [
           {
@@ -946,7 +899,7 @@ export type Database = {
           empresa_id: string
           estado: Database["public"]["Enums"]["pago_estado"]
           id: string
-          metadata: Json | null
+          metadata: Json
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
           mp_expires_at: string | null
@@ -954,7 +907,7 @@ export type Database = {
           mp_payment_id: string | null
           mp_qr_data: string | null
           mp_status_detail: string | null
-          venta_id: string
+          venta_id: string | null
         }
         Insert: {
           confirmed_at?: string | null
@@ -962,7 +915,7 @@ export type Database = {
           empresa_id: string
           estado?: Database["public"]["Enums"]["pago_estado"]
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
           mp_expires_at?: string | null
@@ -970,7 +923,7 @@ export type Database = {
           mp_payment_id?: string | null
           mp_qr_data?: string | null
           mp_status_detail?: string | null
-          venta_id: string
+          venta_id?: string | null
         }
         Update: {
           confirmed_at?: string | null
@@ -978,7 +931,7 @@ export type Database = {
           empresa_id?: string
           estado?: Database["public"]["Enums"]["pago_estado"]
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           metodo?: Database["public"]["Enums"]["metodo_pago"]
           monto?: number
           mp_expires_at?: string | null
@@ -986,7 +939,7 @@ export type Database = {
           mp_payment_id?: string | null
           mp_qr_data?: string | null
           mp_status_detail?: string | null
-          venta_id?: string
+          venta_id?: string | null
         }
         Relationships: [
           {
@@ -1003,13 +956,6 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pagos_venta_id_fkey"
-            columns: ["venta_id"]
-            isOneToOne: false
-            referencedRelation: "ventas_con_resumen"
-            referencedColumns: ["id"]
-          },
         ]
       }
       productos: {
@@ -1024,7 +970,7 @@ export type Database = {
           empresa_id: string
           id: string
           imagen_url: string | null
-          imagenes: string[] | null
+          imagenes: string[]
           meta_descripcion: string | null
           meta_titulo: string | null
           nombre: string
@@ -1047,12 +993,12 @@ export type Database = {
           empresa_id: string
           id?: string
           imagen_url?: string | null
-          imagenes?: string[] | null
+          imagenes?: string[]
           meta_descripcion?: string | null
           meta_titulo?: string | null
           nombre: string
           peso_gramos?: number | null
-          precio_neto: number
+          precio_neto?: number
           sku_base: string
           slug?: string | null
           track_stock?: boolean
@@ -1070,7 +1016,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           imagen_url?: string | null
-          imagenes?: string[] | null
+          imagenes?: string[]
           meta_descripcion?: string | null
           meta_titulo?: string | null
           nombre?: string
@@ -1085,6 +1031,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "productos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sucursales: {
+        Row: {
+          activa: boolean
+          created_at: string
+          direccion: string | null
+          eliminada_at: string | null
+          empresa_id: string
+          id: string
+          localidad: string | null
+          nombre: string
+          provincia: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          direccion?: string | null
+          eliminada_at?: string | null
+          empresa_id: string
+          id?: string
+          localidad?: string | null
+          nombre: string
+          provincia?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          direccion?: string | null
+          eliminada_at?: string | null
+          empresa_id?: string
+          id?: string
+          localidad?: string | null
+          nombre?: string
+          provincia?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sucursales_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
@@ -1112,7 +1108,7 @@ export type Database = {
           email: string
           empresa_id?: string | null
           id: string
-          nombre_completo: string
+          nombre_completo?: string
           rol?: Database["public"]["Enums"]["user_role"]
           ultimo_login_at?: string | null
           ultimo_login_ip?: unknown
@@ -1141,18 +1137,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      v_usuario_empresa_id: {
-        Row: {
-          empresa_id: string | null
-        }
-        Insert: {
-          empresa_id?: string | null
-        }
-        Update: {
-          empresa_id?: string | null
-        }
-        Relationships: []
       }
       variantes: {
         Row: {
@@ -1308,6 +1292,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "ventas_caja_id_fk"
+            columns: ["caja_id"]
+            isOneToOne: false
+            referencedRelation: "cajas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ventas_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
@@ -1322,7 +1313,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ventas_ultimo_request_log_id_fkey"
+            foreignKeyName: "ventas_sucursal_id_fk"
+            columns: ["sucursal_id"]
+            isOneToOne: false
+            referencedRelation: "sucursales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_ultimo_request_log_fk"
             columns: ["ultimo_request_log_id"]
             isOneToOne: false
             referencedRelation: "afip_request_log"
@@ -1334,6 +1332,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -1354,6 +1359,36 @@ export type Database = {
           stock_total: number | null
           tiene_stock_bajo: boolean | null
           track_stock: boolean | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria?: string | null
+          created_at?: string | null
+          descripcion_corta?: string | null
+          empresa_id?: string | null
+          id?: string | null
+          imagen_url?: string | null
+          nombre?: string | null
+          precio_neto?: number | null
+          sku_base?: string | null
+          stock_total?: never
+          tiene_stock_bajo?: never
+          track_stock?: boolean | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string | null
+          created_at?: string | null
+          descripcion_corta?: string | null
+          empresa_id?: string | null
+          id?: string | null
+          imagen_url?: string | null
+          nombre?: string | null
+          precio_neto?: number | null
+          sku_base?: string | null
+          stock_total?: never
+          tiene_stock_bajo?: never
+          track_stock?: boolean | null
         }
         Relationships: [
           {
@@ -1378,33 +1413,32 @@ export type Database = {
           motivo_superadmin: string | null
           superadmin_email: string | null
         }
-        Insert: {
-          accion?: string | null
-          created_at?: string | null
-          detalle?: Json | null
-          empresa_id?: string | null
-          entidad?: string | null
-          entidad_id?: string | null
-          id?: number | null
-          ip?: unknown
-          motivo_superadmin?: string | null
-          superadmin_email?: string | null
-        }
-        Update: {
-          accion?: string | null
-          created_at?: string | null
-          detalle?: Json | null
-          empresa_id?: string | null
-          entidad?: string | null
-          entidad_id?: string | null
-          id?: number | null
-          ip?: unknown
-          motivo_superadmin?: string | null
-          superadmin_email?: string | null
-        }
         Relationships: [
           {
             foreignKeyName: "audit_log_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_usuario_empresa_id: {
+        Row: {
+          empresa_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          empresa_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          empresa_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
@@ -1417,11 +1451,13 @@ export type Database = {
           canal: Database["public"]["Enums"]["canal_venta"] | null
           cliente_id: string | null
           closed_at: string | null
-          creada_desde_ip: unknown
           created_at: string | null
           descuento_total: number | null
           empresa_id: string | null
           estado: Database["public"]["Enums"]["venta_estado"] | null
+          estado_facturacion_afip:
+            | Database["public"]["Enums"]["estado_facturacion_afip"]
+            | null
           id: string | null
           items_cantidad_total: number | null
           items_count: number | null
@@ -1429,11 +1465,15 @@ export type Database = {
           nombre_cliente_custom: string | null
           nota_interna: string | null
           numero: number | null
+          recargo_factura_completa: boolean | null
+          recargo_motivo: string | null
+          recargo_porcentaje_manual: number | null
           subtotal_neto: number | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"] | null
           total: number | null
           updated_at: string | null
           usuario_id: string | null
+          vista_at: string | null
         }
         Relationships: [
           {
@@ -1488,6 +1528,7 @@ export type Database = {
           p_venta_id: string
         }
         Returns: {
+          caja_id: string | null
           canal: Database["public"]["Enums"]["canal_venta"]
           cliente_id: string | null
           closed_at: string | null
@@ -1506,6 +1547,7 @@ export type Database = {
           recargo_motivo: string | null
           recargo_porcentaje_manual: number | null
           subtotal_neto: number
+          sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
           ultimo_error_facturacion: string | null
@@ -1578,6 +1620,11 @@ export type Database = {
         }
         Returns: Json
       }
+      get_default_caja_id: { Args: { p_empresa_id: string }; Returns: string }
+      get_default_sucursal_id: {
+        Args: { p_empresa_id: string }
+        Returns: string
+      }
       get_empresa_id: { Args: never; Returns: string }
       get_rol_usuario: { Args: never; Returns: string }
       guardar_pedido: {
@@ -1632,6 +1679,7 @@ export type Database = {
           p_venta_id: string
         }
         Returns: {
+          caja_id: string | null
           canal: Database["public"]["Enums"]["canal_venta"]
           cliente_id: string | null
           closed_at: string | null
@@ -1650,6 +1698,7 @@ export type Database = {
           recargo_motivo: string | null
           recargo_porcentaje_manual: number | null
           subtotal_neto: number
+          sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
           ultimo_error_facturacion: string | null
@@ -1692,8 +1741,6 @@ export type Database = {
         Args: { p_motivo: string; p_usuario_id: string }
         Returns: Json
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       ventas_totales_filtrados: {
         Args: {
           p_busqueda_texto?: string
@@ -1711,7 +1758,7 @@ export type Database = {
     Enums: {
       afip_resultado: "exito" | "error_negocio" | "error_red" | "error_config"
       afip_severidad: "reintentable" | "permanente" | "requiere_admin"
-      canal_venta: "mostrador" | "ecommerce" | "whatsapp" | "telefono"
+      canal_venta: "mostrador" | "pedido" | "online"
       cond_iva: "RI" | "MONO" | "CF" | "EX"
       estado_facturacion_afip:
         | "no_aplica"
@@ -1719,39 +1766,29 @@ export type Database = {
         | "emitida"
         | "pendiente_facturacion"
         | "error_permanente"
-      factura_tipo: "A" | "C"
+      factura_tipo: "A" | "B" | "C"
       medio_pago:
         | "efectivo"
         | "transferencia"
         | "deposito"
-        | "mercadopago_qr"
         | "tarjeta_credito"
-        | "otro"
-      metodo_pago:
-        | "efectivo"
-        | "transferencia"
-        | "deposito"
+        | "tarjeta_debito"
+        | "cheque"
+        | "mercadopago"
         | "mercadopago_qr"
-        | "mercadopago_link"
-        | "mercadopago_point"
-        | "mercadopago_online"
         | "otro"
-      pago_estado:
-        | "pendiente"
-        | "aprobado"
-        | "rechazado"
-        | "devuelto"
-        | "disputado"
+      metodo_pago: "efectivo" | "transferencia" | "tarjeta" | "mercadopago"
+      pago_estado: "pendiente" | "confirmado" | "rechazado"
       tipo_factura:
         | "sin_factura"
         | "factura_a"
+        | "factura_b"
         | "factura_c"
         | "nota_credito_a"
         | "nota_credito_b"
         | "nota_debito_a"
         | "nota_debito_b"
-        | "factura_b"
-      user_role: "admin" | "vendedor" | "superadmin"
+      user_role: "superadmin" | "admin" | "vendedor"
       venta_estado: "abierta" | "guardada" | "cerrada" | "anulada"
     }
     CompositeTypes: {
@@ -1882,7 +1919,7 @@ export const Constants = {
     Enums: {
       afip_resultado: ["exito", "error_negocio", "error_red", "error_config"],
       afip_severidad: ["reintentable", "permanente", "requiere_admin"],
-      canal_venta: ["mostrador", "ecommerce", "whatsapp", "telefono"],
+      canal_venta: ["mostrador", "pedido", "online"],
       cond_iva: ["RI", "MONO", "CF", "EX"],
       estado_facturacion_afip: [
         "no_aplica",
@@ -1891,43 +1928,31 @@ export const Constants = {
         "pendiente_facturacion",
         "error_permanente",
       ],
-      factura_tipo: ["A", "C"],
+      factura_tipo: ["A", "B", "C"],
       medio_pago: [
         "efectivo",
         "transferencia",
         "deposito",
-        "mercadopago_qr",
         "tarjeta_credito",
-        "otro",
-      ],
-      metodo_pago: [
-        "efectivo",
-        "transferencia",
-        "deposito",
+        "tarjeta_debito",
+        "cheque",
+        "mercadopago",
         "mercadopago_qr",
-        "mercadopago_link",
-        "mercadopago_point",
-        "mercadopago_online",
         "otro",
       ],
-      pago_estado: [
-        "pendiente",
-        "aprobado",
-        "rechazado",
-        "devuelto",
-        "disputado",
-      ],
+      metodo_pago: ["efectivo", "transferencia", "tarjeta", "mercadopago"],
+      pago_estado: ["pendiente", "confirmado", "rechazado"],
       tipo_factura: [
         "sin_factura",
         "factura_a",
+        "factura_b",
         "factura_c",
         "nota_credito_a",
         "nota_credito_b",
         "nota_debito_a",
         "nota_debito_b",
-        "factura_b",
       ],
-      user_role: ["admin", "vendedor", "superadmin"],
+      user_role: ["superadmin", "admin", "vendedor"],
       venta_estado: ["abierta", "guardada", "cerrada", "anulada"],
     },
   },

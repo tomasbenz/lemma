@@ -36,7 +36,9 @@
       "Bash(npm test *)",
       "Bash(rm supabase/migrations/*.sql)",
       "Bash(rm supabase/scripts/*.sql)",
-      "Bash(echo \"tsc-exit=$?\")"
+      "Bash(echo \"tsc-exit=$?\")",
+      "Bash(node *)",
+      "Bash(npx supabase *)"
     ]
   }
 }
