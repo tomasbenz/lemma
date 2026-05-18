@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --conditions=react-server --test src/lib/afip/derivar-tipo-factura.test.ts src/lib/afip/calculos.test.ts src/lib/cobro/calculos.test.ts src/lib/afip/qr.test.ts src/lib/afip/real.test.ts src/lib/afip/fechas.test.ts src/lib/afip/postgres-errors.test.ts src/lib/afip/wsfe/builders.test.ts src/lib/afip/wsfe/parsers.test.ts src/lib/turnos/calculos.test.ts",
+    "test": "node --import tsx --conditions=react-server --test src/lib/afip/derivar-tipo-factura.test.ts src/lib/afip/calculos.test.ts src/lib/cobro/calculos.test.ts src/lib/afip/qr.test.ts src/lib/afip/real.test.ts src/lib/afip/fechas.test.ts src/lib/afip/postgres-errors.test.ts src/lib/afip/wsfe/builders.test.ts src/lib/afip/wsfe/parsers.test.ts src/lib/turnos/calculos.test.ts src/lib/auth/permisos.test.ts src/lib/mercadopago/webhook-signature.test.ts src/lib/mercadopago/webhook-schema.test.ts src/lib/validations/cliente.test.ts src/lib/validations/producto.test.ts src/lib/validations/configuracion.test.ts src/lib/validations/auth.test.ts src/lib/format.test.ts src/lib/format-atributos.test.ts src/lib/utils/date-presets.test.ts",
     "db:types": "supabase gen types typescript --project-id jmfieelwgjbsucwthgww > src/types/database.ts"
   },
   "dependencies": {
