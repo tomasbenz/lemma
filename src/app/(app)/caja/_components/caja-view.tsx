@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { formatARS } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
@@ -39,9 +40,10 @@ import { ModalGuardarPedido } from './modal-guardar-pedido'
 
 type CajaViewProps = {
   user: CurrentUser
+  recargoManualHabilitado: boolean
 }
 
-export function CajaView({ user }: CajaViewProps) {
+export function CajaView({ user, recargoManualHabilitado }: CajaViewProps) {
   const catalog = useCatalogData()
 
   // Loader SOLO en la primerísima entrada sin cache (raro, primera vez post-login).
@@ -94,6 +96,7 @@ export function CajaView({ user }: CajaViewProps) {
       productos={catalog.data.productos}
       clientes={catalog.data.clientes}
       user={user}
+      recargoManualHabilitado={recargoManualHabilitado}
       isOfflineSource={
         catalog.source === 'local' && catalog.serverFetchSettled
       }
@@ -110,11 +113,13 @@ function CajaViewInner({
   productos,
   clientes,
   user,
+  recargoManualHabilitado,
   isOfflineSource,
 }: {
   productos: ProductoCaja[]
   clientes: import('@/lib/queries/clientes-caja').ClienteCaja[]
   user: CurrentUser
+  recargoManualHabilitado: boolean
   isOfflineSource: boolean
 }) {
   const router = useRouter()
@@ -219,8 +224,7 @@ function CajaViewInner({
         productoNombre: producto.nombre,
         productoSku: producto.sku_base,
         imagenUrl: producto.imagen_url,
-        color: variante.color,
-        talle: variante.talle,
+        atributos: variante.atributos,
         skuVariante: variante.sku_variante,
         precioUnitarioNeto: producto.precio_neto,
         stockDisponible: variante.stock,
@@ -252,7 +256,7 @@ function CajaViewInner({
         return
       }
       agregarUnaVariante(producto, v, 1)
-      const label = [v.color, v.talle].filter(Boolean).join(' / ')
+      const label = formatAtributos(v.atributos)
       toast.success(
         label ? `${producto.nombre} — ${label}` : producto.nombre,
         { duration: 1500 }
@@ -490,6 +494,7 @@ function CajaViewInner({
           subtotal={carrito.subtotal}
           descuentoAplicado={carrito.descuentoAplicado}
           total={carrito.total}
+          recargoManualHabilitado={recargoManualHabilitado}
           onVentaCerrada={handleVentaCerrada}
         />
       )}

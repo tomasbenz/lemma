@@ -57,6 +57,15 @@ type ModalCobroProps = {
   subtotal: number;
   descuentoAplicado: number;
   total: number; // total neto (subtotal - descuento)
+  /**
+   * Feature flag empresas.features.recargo_manual_habilitado. Si false:
+   *  - se ocultan checkbox 10,5%, formulario de recargo manual %, y presets
+   *    30/50/100 del monto a facturar.
+   *  - `montoFacturado` se sincroniza siempre al `totalACobrar` (que coincide
+   *    con `total` neto porque no hay recargos posibles).
+   * Para Lemma + Samu el default es false → flujo simple sin recargos.
+   */
+  recargoManualHabilitado: boolean;
   onVentaCerrada: (ventaId: string, numero: number) => void;
 };
 
@@ -75,7 +84,9 @@ const MEDIOS_INFO: Record<MedioPago, { label: string; icon: React.ReactNode }> =
   };
 
 // Porcentajes preset para "Monto a facturar" cuando se factura parcial.
-// Caso de uso: Design Plus factura 30% del total por tema fiscal del cliente.
+// Caso de uso: facturación parcial cuando el comerciante factura solo una
+// porción del total (feature opcional, desactivado por defecto en Lemma
+// vía empresas.features.recargo_manual_habilitado).
 const PORCENTAJES_PRESET = [30, 50, 100] as const;
 
 function nuevoId() {
@@ -96,6 +107,7 @@ export function ModalCobro({
   subtotal,
   descuentoAplicado,
   total, // total neto
+  recargoManualHabilitado,
   onVentaCerrada,
 }: ModalCobroProps) {
   const [tipoFactura, setTipoFactura] = useState<TipoFactura>("sin_factura");
@@ -354,8 +366,7 @@ export function ModalCobro({
       productoNombre: i.productoNombre,
       productoSku: i.productoSku,
       skuVariante: i.skuVariante,
-      color: i.color,
-      talle: i.talle,
+      atributos: i.atributos,
       cantidad: i.cantidad,
       precioUnitarioNeto: i.precioUnitarioNeto,
     }));
@@ -487,42 +498,44 @@ export function ModalCobro({
             </div>
           </div>
 
-          {/* RECARGO MANUAL */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Recargo manual (opcional)</Label>
-            {!mostrarRecargoManual ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={recargoFacturaCompleta}
-                onClick={() => {
-                  setMostrarRecargoManual(true);
-                  setRecargoManualPorcentaje(30);
-                }}
-                className="w-full justify-start text-muted-foreground"
-              >
-                + Recargo (ej: 30% tarjeta)
-                {recargoFacturaCompleta && (
-                  <span className="ml-auto text-[10px]">
-                    (no disponible con recargo 10,5%)
-                  </span>
-                )}
-              </Button>
-            ) : (
-              <RecargoManualForm
-                porcentaje={recargoManualPorcentaje}
-                motivo={recargoManualMotivo}
-                onPorcentajeChange={setRecargoManualPorcentaje}
-                onMotivoChange={setRecargoManualMotivo}
-                onClose={() => {
-                  setRecargoManualPorcentaje(null);
-                  setRecargoManualMotivo("");
-                  setMostrarRecargoManual(false);
-                }}
-              />
-            )}
-          </div>
+          {/* RECARGO MANUAL — feature flag empresas.features.recargo_manual_habilitado */}
+          {recargoManualHabilitado && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Recargo manual (opcional)</Label>
+              {!mostrarRecargoManual ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={recargoFacturaCompleta}
+                  onClick={() => {
+                    setMostrarRecargoManual(true);
+                    setRecargoManualPorcentaje(30);
+                  }}
+                  className="w-full justify-start text-muted-foreground"
+                >
+                  + Recargo (ej: 30% tarjeta)
+                  {recargoFacturaCompleta && (
+                    <span className="ml-auto text-[10px]">
+                      (no disponible con recargo 10,5%)
+                    </span>
+                  )}
+                </Button>
+              ) : (
+                <RecargoManualForm
+                  porcentaje={recargoManualPorcentaje}
+                  motivo={recargoManualMotivo}
+                  onPorcentajeChange={setRecargoManualPorcentaje}
+                  onMotivoChange={setRecargoManualMotivo}
+                  onClose={() => {
+                    setRecargoManualPorcentaje(null);
+                    setRecargoManualMotivo("");
+                    setMostrarRecargoManual(false);
+                  }}
+                />
+              )}
+            </div>
+          )}
 
           {/* FACTURACIÓN */}
           <div className="space-y-2">
@@ -547,36 +560,38 @@ export function ModalCobro({
 
             {tipoFactura !== "sin_factura" && (
               <div className="pt-2 space-y-3">
-                {/* RECARGO 10,5% */}
-                <label className="flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer hover:border-foreground/40">
-                  <input
-                    type="checkbox"
-                    checked={recargoFacturaCompleta}
-                    onChange={(e) => {
-                      setRecargoFacturaCompleta(e.target.checked);
-                      if (e.target.checked && recargoManualPorcentaje !== null) {
-                        setRecargoManualPorcentaje(null);
-                        setRecargoManualMotivo("");
-                        setMostrarRecargoManual(false);
-                        toast.warning(
-                          "Se desactivó el recargo manual — solo se puede aplicar un tipo de recargo",
-                        );
-                      }
-                    }}
-                    className="mt-0.5 size-4 cursor-pointer"
-                  />
-                  <div className="flex-1 -mt-0.5">
-                    <div className="text-sm font-medium">
-                      Cobrar 10,5% extra al cliente
+                {/* RECARGO 10,5% — feature flag */}
+                {recargoManualHabilitado && (
+                  <label className="flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer hover:border-foreground/40">
+                    <input
+                      type="checkbox"
+                      checked={recargoFacturaCompleta}
+                      onChange={(e) => {
+                        setRecargoFacturaCompleta(e.target.checked);
+                        if (e.target.checked && recargoManualPorcentaje !== null) {
+                          setRecargoManualPorcentaje(null);
+                          setRecargoManualMotivo("");
+                          setMostrarRecargoManual(false);
+                          toast.warning(
+                            "Se desactivó el recargo manual — solo se puede aplicar un tipo de recargo",
+                          );
+                        }
+                      }}
+                      className="mt-0.5 size-4 cursor-pointer"
+                    />
+                    <div className="flex-1 -mt-0.5">
+                      <div className="text-sm font-medium">
+                        Cobrar 10,5% extra al cliente
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        El cliente paga {formatARS(total)} +{" "}
+                        {formatARS(round2(total * 0.105))} ={" "}
+                        {formatARS(round2(total * 1.105))}. Se factura el 100% por
+                        ese mismo monto.
+                      </p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      El cliente paga {formatARS(total)} +{" "}
-                      {formatARS(round2(total * 0.105))} ={" "}
-                      {formatARS(round2(total * 1.105))}. Se factura el 100% por
-                      ese mismo monto.
-                    </p>
-                  </div>
-                </label>
+                  </label>
+                )}
 
                 {/* MONTO A FACTURAR */}
                 <div className="space-y-2">
@@ -587,33 +602,36 @@ export function ModalCobro({
                     >
                       Monto a facturar
                     </Label>
-                    <div className="flex items-center gap-1">
-                      {PORCENTAJES_PRESET.map((p) => {
-                        const activo = porcentajeActivo === p;
-                        const deshabilitado =
-                          (recargoFacturaCompleta ||
-                            recargoManualPorcentaje !== null) &&
-                          p !== 100;
-                        return (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => aplicarPorcentaje(p)}
-                            disabled={deshabilitado}
-                            className={cn(
-                              "rounded border px-2 py-0.5 text-[11px] font-medium font-numeric tabular-nums transition-colors",
-                              activo
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
-                              deshabilitado &&
-                                "opacity-30 cursor-not-allowed hover:border-border hover:text-muted-foreground",
-                            )}
-                          >
-                            {p}%
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {/* Presets 30/50/100 — feature flag (facturación parcial) */}
+                    {recargoManualHabilitado && (
+                      <div className="flex items-center gap-1">
+                        {PORCENTAJES_PRESET.map((p) => {
+                          const activo = porcentajeActivo === p;
+                          const deshabilitado =
+                            (recargoFacturaCompleta ||
+                              recargoManualPorcentaje !== null) &&
+                            p !== 100;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => aplicarPorcentaje(p)}
+                              disabled={deshabilitado}
+                              className={cn(
+                                "rounded border px-2 py-0.5 text-[11px] font-medium font-numeric tabular-nums transition-colors",
+                                activo
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                                deshabilitado &&
+                                  "opacity-30 cursor-not-allowed hover:border-border hover:text-muted-foreground",
+                              )}
+                            >
+                              {p}%
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <NumericInput
@@ -626,12 +644,14 @@ export function ModalCobro({
                     prefix="$"
                     placeholder="0,00"
                     disabled={
+                      !recargoManualHabilitado ||
                       recargoFacturaCompleta ||
                       recargoManualPorcentaje !== null
                     }
                   />
 
-                  {porcentajeActivo !== null &&
+                  {recargoManualHabilitado &&
+                    porcentajeActivo !== null &&
                     porcentajeActivo < 100 &&
                     !recargoFacturaCompleta && (
                       <p className="text-[10px] text-muted-foreground">
@@ -641,14 +661,14 @@ export function ModalCobro({
                       </p>
                     )}
 
-                  {(recargoFacturaCompleta ||
-                    recargoManualPorcentaje !== null) && (
-                    <p className="text-[10px] text-muted-foreground">
-                      Con recargo se factura el 100% por{" "}
-                      {formatARS(totalACobrar)}.
-                    </p>
-                  )}
-
+                  {recargoManualHabilitado &&
+                    (recargoFacturaCompleta ||
+                      recargoManualPorcentaje !== null) && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Con recargo se factura el 100% por{" "}
+                        {formatARS(totalACobrar)}.
+                      </p>
+                    )}
                 </div>
               </div>
             )}

@@ -14,6 +14,7 @@ import { NumericInput } from '@/components/app/numeric-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { formatARS } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { SelectorVariantes } from '@/app/(app)/caja/_components/selector-variantes'
 import type {
   ProductoCaja,
@@ -31,8 +32,9 @@ type ItemPedidoRaw = {
   producto_nombre: string
   producto_sku: string
   variante_sku: string
-  variante_color: string | null
-  variante_talle: string | null
+  // Supabase devuelve jsonb como Json (record/array/string/etc). Acá nos
+  // interesa solo el caso "objeto plano de atributos"; coercemos en mapRawToLocal.
+  variante_atributos: unknown
   cantidad: number
   precio_unitario_neto: number
   subtotal_neto: number
@@ -43,8 +45,7 @@ type EditarItemLocal = {
   productoNombre: string
   productoSku: string
   varianteSku: string
-  varianteColor: string | null
-  varianteTalle: string | null
+  varianteAtributos: Record<string, string>
   cantidad: number
   precioUnitarioNeto: number
 }
@@ -69,14 +70,22 @@ function itemsKey(items: EditarItemLocal[]): string {
     .join('|')
 }
 
+function coerceAtributos(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v !== null && v !== undefined) out[k] = String(v)
+  }
+  return out
+}
+
 function mapRawToLocal(raw: ItemPedidoRaw): EditarItemLocal {
   return {
     varianteId: raw.variante_id,
     productoNombre: raw.producto_nombre,
     productoSku: raw.producto_sku,
     varianteSku: raw.variante_sku,
-    varianteColor: raw.variante_color,
-    varianteTalle: raw.variante_talle,
+    varianteAtributos: coerceAtributos(raw.variante_atributos),
     cantidad: raw.cantidad,
     precioUnitarioNeto: raw.precio_unitario_neto,
   }
@@ -163,8 +172,7 @@ export function EditarPedidoView({
             productoNombre: producto.nombre,
             productoSku: producto.sku_base,
             varianteSku: variante.sku_variante,
-            varianteColor: variante.color,
-            varianteTalle: variante.talle,
+            varianteAtributos: variante.atributos,
             cantidad,
             precioUnitarioNeto: producto.precio_neto,
           },
@@ -183,7 +191,7 @@ export function EditarPedidoView({
       if (producto.variantes.length === 1) {
         const v = producto.variantes[0]
         agregarVariante(producto, v, 1)
-        const label = [v.color, v.talle].filter(Boolean).join(' / ')
+        const label = formatAtributos(v.atributos)
         toast.success(
           label ? `${producto.nombre} — ${label}` : producto.nombre,
           { duration: 1500 }
@@ -245,8 +253,7 @@ export function EditarPedidoView({
       productoNombre: i.productoNombre,
       productoSku: i.productoSku,
       varianteSku: i.varianteSku,
-      varianteColor: i.varianteColor,
-      varianteTalle: i.varianteTalle,
+      varianteAtributos: i.varianteAtributos,
       cantidad: i.cantidad,
       precioUnitarioNeto: i.precioUnitarioNeto,
     }))
@@ -349,9 +356,7 @@ export function EditarPedidoView({
                   </p>
                 ) : (
                   items.map((item) => {
-                    const detalleVariante = [item.varianteColor, item.varianteTalle]
-                      .filter(Boolean)
-                      .join(' / ')
+                    const detalleVariante = formatAtributos(item.varianteAtributos)
                     const subtotalItem = round2(
                       item.cantidad * item.precioUnitarioNeto
                     )

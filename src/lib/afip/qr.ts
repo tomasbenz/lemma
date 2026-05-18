@@ -23,7 +23,7 @@ export type DatosQrAfip = {
   fecha: string
   puntoVenta: number
   /**
-   * Código AFIP de tipo de comprobante. Iconic Fashion solo emite:
+   * Código AFIP de tipo de comprobante. Soportados acá:
    * - 1 = Factura A
    * - 6 = Factura B
    * Para futuras extensiones (NC/ND), ampliar la unión.

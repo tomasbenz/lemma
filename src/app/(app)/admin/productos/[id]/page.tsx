@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatARS, formatNumber, formatFechaRelativa } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { CambiarEstadoButton } from './_components/cambiar-estado-button'
 import { AjustarStockDialog } from '../_components/ajustar-stock-dialog'
 
@@ -229,10 +230,7 @@ export default async function ProductoDetallePage({
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="text-left font-semibold px-4 py-2.5">
-                        Color
-                      </th>
-                      <th className="text-left font-semibold px-4 py-2.5">
-                        Talle
+                        Atributos
                       </th>
                       <th className="text-left font-semibold px-4 py-2.5">
                         SKU
@@ -249,63 +247,63 @@ export default async function ProductoDetallePage({
                     </tr>
                   </thead>
                   <tbody>
-                    {producto.variantes.map((v) => (
-                      <tr
-                        key={v.id}
-                        className={`border-t ${
-                          !v.activa ? 'text-muted-foreground' : ''
-                        }`}
-                      >
-                        <td className="px-4 py-2.5">{v.color ?? '—'}</td>
-                        <td className="px-4 py-2.5">{v.talle ?? '—'}</td>
-                        <td className="px-4 py-2.5 font-numeric text-xs">
-                          {v.sku_variante}
-                        </td>
-                        <td className="px-4 py-2.5 text-center">
-                          <span
-                            className={`font-numeric ${
-                              v.activa && v.stock === 0
-                                ? 'text-destructive font-medium'
-                                : v.activa && v.stock < 5
-                                  ? 'text-warning font-medium'
-                                  : ''
-                            }`}
-                          >
-                            {formatNumber(v.stock)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {v.activa ? (
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-success/30 text-success bg-success/10"
+                    {producto.variantes.map((v) => {
+                      const atributosLabel = formatAtributos(v.atributos) || '—'
+                      return (
+                        <tr
+                          key={v.id}
+                          className={`border-t ${
+                            !v.activa ? 'text-muted-foreground' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-2.5">{atributosLabel}</td>
+                          <td className="px-4 py-2.5 font-numeric text-xs">
+                            {v.sku_variante}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span
+                              className={`font-numeric ${
+                                v.activa && v.stock === 0
+                                  ? 'text-destructive font-medium'
+                                  : v.activa && v.stock < 5
+                                    ? 'text-warning font-medium'
+                                    : ''
+                              }`}
                             >
-                              Activa
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Inactiva
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          {v.activa && (
-                            <AjustarStockDialog
-                              varianteId={v.id}
-                              stockActual={v.stock}
-                              productoNombre={producto.nombre}
-                              varianteLabel={
-                                [v.color, v.talle]
-                                  .filter(Boolean)
-                                  .join(' / ') ||
-                                v.sku_variante ||
-                                'Única'
-                              }
-                            />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                              {formatNumber(v.stock)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {v.activa ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-success/30 text-success bg-success/10"
+                              >
+                                Activa
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Inactiva
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {v.activa && (
+                              <AjustarStockDialog
+                                varianteId={v.id}
+                                stockActual={v.stock}
+                                productoNombre={producto.nombre}
+                                varianteLabel={
+                                  atributosLabel !== '—'
+                                    ? atributosLabel
+                                    : v.sku_variante || 'Única'
+                                }
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

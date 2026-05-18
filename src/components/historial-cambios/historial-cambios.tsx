@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { formatARS } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import type { HistorialEvento } from '@/lib/queries/historial-venta'
 
 type HistorialCambiosProps = {
@@ -81,8 +82,7 @@ type ItemAuditado = {
   variante_id?: string
   producto_nombre?: string
   variante_sku?: string
-  variante_color?: string | null
-  variante_talle?: string | null
+  variante_atributos?: Record<string, unknown> | null
   cantidad?: number
   precio_unitario_neto?: number
   subtotal_neto?: number
@@ -103,10 +103,7 @@ function leerItems(raw: unknown): ItemAuditado[] {
 }
 
 function descripcionVariante(it: ItemAuditado): string {
-  const detalle = [it.variante_color, it.variante_talle]
-    .filter(Boolean)
-    .join(' / ')
-  return detalle || 'Única'
+  return formatAtributos(it.variante_atributos) || 'Única'
 }
 
 function indexar(items: ItemAuditado[]): Map<string, ItemAuditado> {

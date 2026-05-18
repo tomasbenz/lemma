@@ -15,8 +15,8 @@ export type FacturaPdfData = {
     razon_social: string
     /**
      * Nombre comercial / fantasy. Si está presente, se muestra grande arriba
-     * y razon_social aparece como dato legal abajo (patrón sistema viejo
-     * de Iconic). Si es null, solo se muestra razon_social arriba.
+     * y razon_social aparece como dato legal abajo. Si es null, solo se
+     * muestra razon_social arriba.
      */
     nombre_fantasia: string | null
     cuit: string
@@ -32,8 +32,8 @@ export type FacturaPdfData = {
   }
   // Datos del comprobante.
   // 'A' = Factura A (CbteTipo 1, código visible '01').
-  // 'B' = Factura B (CbteTipo 6, código visible '06'). Iconic Fashion (RI)
-  //       NUNCA emite Factura C, así que solo soportamos A o B.
+  // 'B' = Factura B (CbteTipo 6, código visible '06'). Emisores RI nunca
+  //       emiten Factura C, así que solo soportamos A o B.
   tipo: 'A' | 'B'
   puntoVenta: number
   numero: number

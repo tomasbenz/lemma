@@ -5,7 +5,12 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { createClient } from '@/lib/supabase/server'
 
-type Tabla = 'catalogo_colores' | 'catalogo_talles' | 'catalogo_categorias'
+/**
+ * El refactor de Lemma eliminó las tablas `catalogo_colores` y `catalogo_talles`.
+ * Solo queda `catalogo_categorias`. Los atributos de variante (color, formato,
+ * gramaje, etc.) viven ahora en `categoria_atributos` con CRUD propio.
+ */
+type Tabla = 'catalogo_categorias'
 
 type SimpleResult =
   | { ok: true }
@@ -20,7 +25,7 @@ function normalizar(nombre: string): string {
     .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, ' ')
 }
 
@@ -46,7 +51,6 @@ async function authzAdmin(): Promise<
 export type CrearItemInput = {
   tabla: Tabla
   nombre: string
-  hex?: string | null
   orden?: number
 }
 
@@ -67,15 +71,6 @@ export async function crearCatalogoItem(
     }
 
     const nombreNorm = normalizar(nombre)
-    const hex = input.hex?.trim() || null
-
-    if (hex && !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-      return {
-        ok: false,
-        error: 'Color hex inválido (formato #RRGGBB)',
-        field: 'hex',
-      }
-    }
 
     const supabase = await createClient()
 
@@ -88,17 +83,9 @@ export async function crearCatalogoItem(
 
     if (existente) {
       if (!existente.activo) {
-        const updateData: Record<string, unknown> = {
-          activo: true,
-          nombre,
-        }
-        if (input.tabla === 'catalogo_colores' && hex) {
-          updateData.hex = hex
-        }
-
         const { error: errUpdate } = await supabase
           .from(input.tabla)
-          .update(updateData as never)
+          .update({ activo: true, nombre } as never)
           .eq('id', existente.id)
 
         if (errUpdate) return { ok: false, error: errUpdate.message }
@@ -113,20 +100,15 @@ export async function crearCatalogoItem(
       }
     }
 
-    const insertData: Record<string, unknown> = {
-      empresa_id: authz.empresaId,
-      nombre,
-      nombre_normalizado: nombreNorm,
-      orden: input.orden ?? 0,
-      activo: true,
-    }
-    if (input.tabla === 'catalogo_colores' && hex) {
-      insertData.hex = hex
-    }
-
     const { data, error } = await supabase
       .from(input.tabla)
-      .insert(insertData as never)
+      .insert({
+        empresa_id: authz.empresaId,
+        nombre,
+        nombre_normalizado: nombreNorm,
+        orden: input.orden ?? 0,
+        activo: true,
+      } as never)
       .select('id')
       .single()
 
@@ -153,7 +135,6 @@ export type EditarItemInput = {
   tabla: Tabla
   id: string
   nombre: string
-  hex?: string | null
   orden: number
 }
 
@@ -174,15 +155,6 @@ export async function editarCatalogoItem(
     }
 
     const nombreNorm = normalizar(nombre)
-    const hex = input.hex?.trim() || null
-
-    if (hex && !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-      return {
-        ok: false,
-        error: 'Color hex inválido (formato #RRGGBB)',
-        field: 'hex',
-      }
-    }
 
     const supabase = await createClient()
 
@@ -215,18 +187,13 @@ export async function editarCatalogoItem(
       }
     }
 
-    const updateData: Record<string, unknown> = {
-      nombre,
-      nombre_normalizado: nombreNorm,
-      orden: input.orden,
-    }
-    if (input.tabla === 'catalogo_colores') {
-      updateData.hex = hex
-    }
-
     const { error } = await supabase
       .from(input.tabla)
-      .update(updateData as never)
+      .update({
+        nombre,
+        nombre_normalizado: nombreNorm,
+        orden: input.orden,
+      } as never)
       .eq('id', input.id)
 
     if (error) return { ok: false, error: error.message }

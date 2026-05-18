@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Loom Point',
-    template: '%s · Loom Point',
+    default: 'Lemma',
+    template: '%s · Lemma',
   },
-  description: 'Sistema de gestión de ventas para Design Plus',
+  description: 'Sistema de gestión de ventas para Librería Samu',
   robots: {
     index: false,
     follow: false,
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Loom Point',
+    title: 'Lemma',
   },
   formatDetection: {
     telephone: false,
@@ -56,12 +56,12 @@ export default function RootLayout({
       <head>
         <link
           rel="preconnect"
-          href="https://mxkelleuppbdghmokcur.supabase.co"
+          href="https://jmfieelwgjbsucwthgww.supabase.co"
           crossOrigin="anonymous"
         />
         <link
           rel="dns-prefetch"
-          href="https://mxkelleuppbdghmokcur.supabase.co"
+          href="https://jmfieelwgjbsucwthgww.supabase.co"
         />
       </head>
       <body

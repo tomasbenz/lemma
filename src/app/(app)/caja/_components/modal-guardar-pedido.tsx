@@ -127,8 +127,7 @@ export function ModalGuardarPedido({
       productoNombre: i.productoNombre,
       productoSku: i.productoSku,
       skuVariante: i.skuVariante,
-      color: i.color,
-      talle: i.talle,
+      atributos: i.atributos,
       cantidad: i.cantidad,
       precioUnitarioNeto: i.precioUnitarioNeto,
     }))

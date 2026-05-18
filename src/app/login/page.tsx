@@ -51,11 +51,11 @@ export default async function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-[420px] animate-in fade-in slide-in-from-bottom-2 duration-500">
-        {/* Monograma LP */}
+        {/* Monograma L */}
         <div className="flex justify-center mb-8">
           <div className="size-12 flex items-center justify-center border border-white/15 rounded-sm">
             <span className="text-white text-base font-semibold tracking-tight">
-              LP
+              L
             </span>
           </div>
         </div>
@@ -63,12 +63,12 @@ export default async function LoginPage() {
         {/* Branding */}
         <div className="text-center space-y-3 mb-10">
           <h1 className="text-4xl font-bold tracking-tight text-white">
-            Loom Point
+            Lemma
           </h1>
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-white/15" />
             <p className="text-[11px] uppercase tracking-[0.18em] text-white/45 font-medium">
-              Sistema de gestión · Gestión textil
+              Sistema de gestión · Librería
             </p>
             <span className="h-px w-8 bg-white/15" />
           </div>

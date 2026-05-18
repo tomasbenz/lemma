@@ -20,7 +20,7 @@ export type DescomposicionFactura = {
  *     neto + IVA discriminado, así que descomponemos hacia atrás dividiendo
  *     por 1.21.
  *   - Factura C (monotributo emisor): AFIP no discrimina IVA, todo va como
- *     neto. Iconic es RI, no emite C — queda solo como backcompat.
+ *     neto. Para emisores RI no aplica — queda como backcompat.
  *
  * El IVA absorbe el redondeo: `netoGravado + iva === total` siempre.
  */

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { createClient } from '@/lib/supabase/server'
 import { descomponerFactura } from '@/lib/afip/calculos'
+import { formatAtributos } from '@/lib/format-atributos'
 
 type ExportInput = {
   /** IDs específicas de ventas a exportar. Lo mandamos desde el client
@@ -39,8 +40,7 @@ type VentaExport = {
     producto_nombre: string
     producto_sku: string
     variante_sku: string
-    variante_color: string | null
-    variante_talle: string | null
+    variante_atributos: Record<string, unknown> | null
     cantidad: number
     precio_unitario_neto: number
     subtotal_neto: number
@@ -106,8 +106,7 @@ export async function exportarVentasExcel(
           producto_nombre,
           producto_sku,
           variante_sku,
-          variante_color,
-          variante_talle,
+          variante_atributos,
           cantidad,
           precio_unitario_neto,
           subtotal_neto
@@ -313,9 +312,7 @@ export async function exportarVentasExcel(
     const sheetItems: Array<Record<string, string | number>> = []
     for (const v of ventas) {
       for (const i of v.items) {
-        const variante =
-          [i.variante_color, i.variante_talle].filter(Boolean).join(' / ') ||
-          '—'
+        const variante = formatAtributos(i.variante_atributos) || '—'
         sheetItems.push({
           'N° venta': v.numero,
           Fecha: formatearFecha(v.created_at),

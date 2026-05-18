@@ -127,7 +127,7 @@ export async function GET(
 
   // Totales según tipo. Bajo el modelo nuevo, monto_facturado YA es el total
   // final cobrado: para A y B se descompone en neto + IVA; para C el IVA
-  // queda en 0 (no aplica a Iconic — solo backcompat de homo).
+  // queda en 0 (no aplica a emisores RI — solo backcompat de homo).
   const esTipoA = venta.tipo_factura === 'factura_a'
   const {
     netoGravado: subtotalNeto,
@@ -179,11 +179,11 @@ export async function GET(
   }
 
   // El tipoCmp del QR debe matchear exactamente el cbteTipo enviado a AFIP.
-  // Iconic Fashion (RI) solo emite:
+  // Emisor RI emite:
   // - factura_a → cbteTipo 1 (Factura A)
-  // - factura_b → cbteTipo 6 (Factura B) — el valor nuevo desde mayo 2026.
+  // - factura_b → cbteTipo 6 (Factura B)
   // - factura_c en DB → cbteTipo 6 (Factura B), backcompat de ventas
-  //   historicas de homologacion. Iconic NUNCA emite Factura C real.
+  //   historicas de homologacion. Un RI NUNCA emite Factura C real.
   // Si en el futuro se suman NC/ND, mapear acá: 3=NC A, 8=NC B, 13=NC C,
   // 2=ND A, 7=ND B, 12=ND C.
   const tipoCmp = esTipoA ? 1 : 6

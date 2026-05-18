@@ -15,8 +15,8 @@ export type UsuarioListado = {
 /**
  * Lista todos los usuarios de la empresa del usuario logueado.
  *
- * RLS filtra automáticamente por empresa_id. El admin de Design Plus
- * solo ve usuarios de Design Plus; el superadmin impersonando ve los
+ * RLS filtra automáticamente por empresa_id. El admin de una empresa
+ * solo ve usuarios de su empresa; el superadmin impersonando ve los
  * de la empresa activa.
  */
 export async function listarUsuarios(): Promise<UsuarioListado[]> {

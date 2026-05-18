@@ -1,5 +1,5 @@
 {
-  "name": "loom-point",
+  "name": "lemma",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --import tsx --conditions=react-server --test src/lib/afip/derivar-tipo-factura.test.ts src/lib/afip/calculos.test.ts src/lib/cobro/calculos.test.ts src/lib/afip/qr.test.ts src/lib/afip/real.test.ts src/lib/afip/fechas.test.ts src/lib/afip/postgres-errors.test.ts src/lib/afip/wsfe/builders.test.ts src/lib/afip/wsfe/parsers.test.ts",
-    "db:types": "supabase gen types typescript --project-id mxkelleuppbdghmokcur > src/types/database.ts"
+    "db:types": "supabase gen types typescript --project-id jmfieelwgjbsucwthgww > src/types/database.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,7 +1,7 @@
 import 'server-only'
 
 /**
- * Configuración de AFIP para Loom Point.
+ * Configuración de AFIP para Lemma.
  *
  * Lee variables de entorno y las valida. Lazy + cached: la primera vez
  * que se pide la config, se valida y memoriza. Las llamadas siguientes

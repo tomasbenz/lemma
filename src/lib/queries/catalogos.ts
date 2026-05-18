@@ -19,46 +19,11 @@ export type CatalogoItemAdmin = {
 }
 
 /**
- * Lista colores del catálogo (solo activos, para uso en formularios).
- */
-export async function listarColores(): Promise<CatalogoItem[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('catalogo_colores')
-    .select('id, nombre, nombre_normalizado, orden')
-    .eq('activo', true)
-    .order('orden', { ascending: true })
-    .order('nombre', { ascending: true })
-
-  if (error) {
-    console.error('[listarColores] Error:', error.message)
-    return []
-  }
-  return data ?? []
-}
-
-/**
- * Lista talles del catálogo (solo activos).
- */
-export async function listarTalles(): Promise<CatalogoItem[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('catalogo_talles')
-    .select('id, nombre, nombre_normalizado, orden')
-    .eq('activo', true)
-    .order('orden', { ascending: true })
-    .order('nombre', { ascending: true })
-
-  if (error) {
-    console.error('[listarTalles] Error:', error.message)
-    return []
-  }
-  return data ?? []
-}
-
-/**
- * Lista categorías de productos (solo activas).
- * Para usar en selectores al crear/editar productos.
+ * Lista categorías de productos activas. Usar al crear/editar productos.
+ *
+ * Nota: las tablas `catalogo_colores` y `catalogo_talles` de Loom Point
+ * fueron eliminadas. Variantes ahora usan jsonb `atributos` (color, formato,
+ * gramaje, etc.) y la definición por categoría vive en `categoria_atributos`.
  */
 export async function listarCategorias(): Promise<CatalogoItem[]> {
   const supabase = await createClient()
@@ -74,75 +39,6 @@ export async function listarCategorias(): Promise<CatalogoItem[]> {
     return []
   }
   return data ?? []
-}
-
-/**
- * Lista TODOS los colores (activos + inactivos) con count de uso.
- */
-export async function listarColoresAdmin(): Promise<CatalogoItemAdmin[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('catalogo_colores')
-    .select('id, nombre, nombre_normalizado, orden, activo, hex')
-    .order('activo', { ascending: false })
-    .order('orden', { ascending: true })
-    .order('nombre', { ascending: true })
-
-  if (error) {
-    console.error('[listarColoresAdmin] Error:', error.message)
-    return []
-  }
-
-  const items: CatalogoItemAdmin[] = await Promise.all(
-    (data ?? []).map(async (c) => {
-      const { count } = await supabase
-        .from('variantes')
-        .select('id', { count: 'exact', head: true })
-        .eq('color', c.nombre)
-      return {
-        ...c,
-        uso_count: count ?? 0,
-      }
-    })
-  )
-
-  return items
-}
-
-/**
- * Lista TODOS los talles (activos + inactivos) con count de uso.
- */
-export async function listarTallesAdmin(): Promise<CatalogoItemAdmin[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('catalogo_talles')
-    .select('id, nombre, nombre_normalizado, orden, activo')
-    .order('activo', { ascending: false })
-    .order('orden', { ascending: true })
-    .order('nombre', { ascending: true })
-
-  if (error) {
-    console.error('[listarTallesAdmin] Error:', error.message)
-    return []
-  }
-
-  const items: CatalogoItemAdmin[] = await Promise.all(
-    (data ?? []).map(async (t) => {
-      const { count } = await supabase
-        .from('variantes')
-        .select('id', { count: 'exact', head: true })
-        .eq('talle', t.nombre)
-      return {
-        ...t,
-        hex: null,
-        uso_count: count ?? 0,
-      }
-    })
-  )
-
-  return items
 }
 
 /**
@@ -180,4 +76,52 @@ export async function listarCategoriasAdmin(): Promise<CatalogoItemAdmin[]> {
   )
 
   return items
+}
+
+export type CategoriaAtributo = {
+  id: string
+  categoria_id: string
+  nombre: string
+  tipo: string
+  opciones: string[] | null
+  obligatorio: boolean
+  orden: number
+  activo: boolean
+}
+
+/**
+ * Lista los atributos esperados para una categoría. Usar al renderizar
+ * dinámicamente el form de variantes de un producto: cada categoría puede
+ * definir qué atributos espera (ej "color", "formato", "gramaje") y de qué
+ * tipo (texto, número, selección).
+ */
+export async function listarAtributosPorCategoria(
+  categoriaId: string,
+): Promise<CategoriaAtributo[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('categoria_atributos')
+    .select('id, categoria_id, nombre, tipo, opciones, obligatorio, orden, activo')
+    .eq('categoria_id', categoriaId)
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    console.error('[listarAtributosPorCategoria] Error:', error.message)
+    return []
+  }
+
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    categoria_id: a.categoria_id,
+    nombre: a.nombre,
+    tipo: a.tipo,
+    opciones: Array.isArray(a.opciones)
+      ? (a.opciones as string[])
+      : null,
+    obligatorio: a.obligatorio,
+    orden: a.orden,
+    activo: a.activo,
+  }))
 }

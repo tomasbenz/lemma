@@ -4,8 +4,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { isRecargoManualHabilitado } from "@/lib/features";
 import { emitirFacturaAfip } from "@/app/(app)/admin/ventas/_actions/emitir-factura-afip";
 import { derivarTipoFactura } from "@/lib/afip/derivar-tipo-factura";
+import type { Atributos } from "@/lib/format-atributos";
 import type { TipoFacturaUI as TipoFactura } from "@/lib/types/factura";
 type MedioPago =
   | "efectivo"
@@ -20,8 +22,12 @@ export type ItemVentaInput = {
   productoNombre: string;
   productoSku: string;
   skuVariante: string;
-  color: string | null;
-  talle: string | null;
+  /**
+   * Snapshot de atributos de la variante. Reemplaza el viejo par (color, talle).
+   * Se persiste en items_venta.variante_atributos como jsonb. Vacío {} si
+   * la variante no tenía atributos (caso DEFAULT).
+   */
+  atributos: Atributos;
   cantidad: number;
   precioUnitarioNeto: number;
 };
@@ -125,8 +131,19 @@ export async function cerrarVenta(
     }
 
     const totalNeto = redondear(subtotal - descuento);
-    const recargo = input.recargoFacturaCompleta ?? false;
-    const recargoManual = input.recargoPorcentajeManual ?? null;
+
+    // Feature flag empresas.features.recargo_manual_habilitado: si la
+    // empresa NO tiene el feature activo, ignoramos cualquier intento del
+    // cliente de mandar recargo (UI lo oculta, pero defense in depth).
+    const recargoHabilitado = user.empresa_id
+      ? await isRecargoManualHabilitado(user.empresa_id)
+      : false;
+    const recargo = recargoHabilitado
+      ? (input.recargoFacturaCompleta ?? false)
+      : false;
+    const recargoManual = recargoHabilitado
+      ? (input.recargoPorcentajeManual ?? null)
+      : null;
 
     // Mutex de recargos
     if (recargo && recargoManual !== null) {
@@ -197,8 +214,7 @@ export async function cerrarVenta(
       producto_nombre: i.productoNombre,
       producto_sku: i.productoSku,
       variante_sku: i.skuVariante,
-      variante_color: i.color,
-      variante_talle: i.talle,
+      variante_atributos: i.atributos,
       cantidad: i.cantidad,
       precio_unitario_neto: i.precioUnitarioNeto,
       subtotal_neto: redondear(i.precioUnitarioNeto * i.cantidad),

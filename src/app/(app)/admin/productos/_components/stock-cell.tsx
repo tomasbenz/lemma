@@ -12,11 +12,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { actualizarStock } from '../_actions/actualizar-stock'
+import { formatAtributos } from '@/lib/format-atributos'
 
 export type VarianteStock = {
   id: string
-  color: string | null
-  talle: string | null
+  atributos: Record<string, string>
   sku_variante: string | null
   stock: number
 }
@@ -329,9 +329,7 @@ function VariantsStockPopover({
             const esInvalido =
               values[v.id] !== '' && (isNaN(parsed) || parsed < 0)
 
-            const label =
-              [v.color, v.talle].filter(Boolean).join(' / ') ||
-              'Variante única'
+            const label = formatAtributos(v.atributos) || 'Variante única'
 
             return (
               <div key={v.id} className="flex items-center gap-2">

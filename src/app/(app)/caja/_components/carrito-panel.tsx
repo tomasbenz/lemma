@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { NumericInput } from '@/components/app/numeric-input'
 import { formatARS } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/app/empty-state'
 import type { ItemCarrito } from '../_hooks/use-carrito'
@@ -250,8 +251,7 @@ function CarritoItem({
   onRemove: () => void
 }) {
   const subtotalItem = item.precioUnitarioNeto * item.cantidad
-  const varianteLabel =
-    [item.color, item.talle].filter(Boolean).join(' / ') || null
+  const varianteLabel = formatAtributos(item.atributos) || null
   const enMaximo = item.trackStock && item.cantidad >= item.stockDisponible
   const maxCantidad = item.trackStock ? item.stockDisponible : undefined
 

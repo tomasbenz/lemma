@@ -106,8 +106,7 @@ function buildSyncPayload(pedido: PedidoEnCola) {
         productoNombre: string
         productoSku: string
         skuVariante: string
-        color: string | null
-        talle: string | null
+        atributos: Record<string, string>
         cantidad: number
         precioUnitarioNeto: number
       }>

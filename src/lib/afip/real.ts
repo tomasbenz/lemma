@@ -50,7 +50,7 @@ import { traducirErrorAfip } from './errors'
  * Mapeo:
  * - 'factura_a'      → 1 (Factura A: RI a RI/MONO)
  * - 'factura_b'      → 6 (Factura B: RI a CF/Exento/etc)
- * - 'factura_c'      → 6 (defensivo: Iconic es RI, no emite C; mapeamos
+ * - 'factura_c'      → 6 (defensivo: emisores RI no emiten C; mapeamos
  *                         a B para no romper si el caller manda C por
  *                         error de routing.)
  * - 'nota_debito_a'  → 2
@@ -88,9 +88,8 @@ function traducirReceptor(r: ReceptorFactura | null): DatosReceptorFactura {
     return { docTipo: 99, docNro: '0', condicionIVAReceptorId: 5 }
   }
   // El docTipo legacy permite 80, 86, 96, 99. wsfe acepta 80 | 96 | 99.
-  // Si llega 86 (CUIL), lo mapeamos a 96 (DNI) defensivamente — Iconic
-  // hoy no usa CUIL, pero si algún día lo usa hay que extender el tipo
-  // de wsfe. Documentado.
+  // Si llega 86 (CUIL), lo mapeamos a 96 (DNI) defensivamente — si algún
+  // emisor necesita CUIL hay que extender el tipo de wsfe. Documentado.
   const docTipo = r.documento.tipo === 86 ? 96 : r.documento.tipo
   return {
     docTipo,

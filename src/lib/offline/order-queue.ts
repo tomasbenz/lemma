@@ -16,8 +16,11 @@ export type PayloadPedidoOffline = {
     productoNombre: string
     productoSku: string
     skuVariante: string
-    color: string | null
-    talle: string | null
+    /**
+     * Snapshot de atributos de la variante. Generaliza el viejo par
+     * (color, talle) del proyecto Loom Point en un jsonb arbitrario.
+     */
+    atributos: Record<string, string>
     cantidad: number
     precioUnitarioNeto: number
   }>

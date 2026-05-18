@@ -34,8 +34,7 @@ export type PedidoItem = {
   producto_nombre: string
   producto_sku: string
   variante_sku: string
-  variante_color: string | null
-  variante_talle: string | null
+  variante_atributos: Record<string, string>
   cantidad: number
   precio_unitario_neto: number
   subtotal_neto: number
@@ -306,8 +305,7 @@ export async function obtenerPedido(
         producto_nombre,
         producto_sku,
         variante_sku,
-        variante_color,
-        variante_talle,
+        variante_atributos,
         cantidad,
         precio_unitario_neto,
         subtotal_neto,
@@ -347,12 +345,20 @@ export async function obtenerPedido(
     producto_nombre: string
     producto_sku: string
     variante_sku: string
-    variante_color: string | null
-    variante_talle: string | null
+    variante_atributos: unknown
     cantidad: number
     precio_unitario_neto: number
     subtotal_neto: number
     variante: VarianteRaw | VarianteRaw[] | null
+  }
+
+  function coerceAtributos(raw: unknown): Record<string, string> {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    const out: Record<string, string> = {}
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (v !== null && v !== undefined) out[k] = String(v)
+    }
+    return out
   }
 
   const itemsRaw = (data.items_venta ?? []) as ItemRaw[]
@@ -371,8 +377,7 @@ export async function obtenerPedido(
       producto_nombre: i.producto_nombre,
       producto_sku: i.producto_sku,
       variante_sku: i.variante_sku,
-      variante_color: i.variante_color,
-      variante_talle: i.variante_talle,
+      variante_atributos: coerceAtributos(i.variante_atributos),
       cantidad: i.cantidad,
       precio_unitario_neto: i.precio_unitario_neto,
       subtotal_neto: i.subtotal_neto,

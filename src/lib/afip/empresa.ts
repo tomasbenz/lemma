@@ -18,7 +18,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * AFIP responde:
  *   "ValidacionDeToken: No apareció CUIT en lista de relaciones: {cuit}"
  *
- * En el schema de Loom Point la CUIT vive en la tabla `configuracion`
+ * En el schema de Lemma la CUIT vive en la tabla `configuracion`
  * (1-a-1 con `empresas` vía empresa_id), junto con razon_social,
  * condicion_iva, domicilio, puntos_venta y demás datos fiscales que
  * Fase 4.b va a necesitar para FECAESolicitar.

@@ -246,11 +246,11 @@ export function AppSidebar({
                     'transition-transform duration-200 group-hover/brand:scale-105'
                   )}
                 >
-                  <span className="text-sm font-bold tracking-tight">LP</span>
+                  <span className="text-sm font-bold tracking-tight">L</span>
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold tracking-tight">
-                    Loom Point
+                    Lemma
                   </span>
                   {empresaNombre && (
                     <span className="truncate text-xs text-muted-foreground">

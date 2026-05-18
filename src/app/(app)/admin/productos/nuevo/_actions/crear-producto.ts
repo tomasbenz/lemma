@@ -6,10 +6,28 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { productoSchema, type ProductoInput } from '@/lib/validations/producto'
 import { borrarImagenProducto } from '@/lib/images/upload'
+import { sufijoSku, type Atributos } from '@/lib/format-atributos'
 
 export type CrearProductoResult =
   | { ok: true; productoId: string; slug: string }
   | { ok: false; error: string; field?: string }
+
+/**
+ * Convierte el array de pares {clave, valor} del form en el jsonb plano
+ * `atributos` que persistimos. Las claves se normalizan a lowercase con
+ * trim para que combinaciones equivalentes (Color/color/COLOR) colapsen.
+ */
+function pairsAObjeto(
+  pares: Array<{ clave: string; valor: string }>,
+): Atributos {
+  const out: Atributos = {}
+  for (const p of pares) {
+    const k = p.clave.trim().toLowerCase()
+    const v = p.valor.trim()
+    if (k && v) out[k] = v
+  }
+  return out
+}
 
 /**
  * Server Action: crea un producto con sus variantes en una transacción lógica.
@@ -21,7 +39,6 @@ export type CrearProductoResult =
  * 4. Inserta producto (incluyendo imagen_url si vino)
  * 5. Inserta variantes (si tiene) o crea variante DEFAULT (si no)
  * 6. Revalida el listado
- * 7. Devuelve el ID para redireccionar
  */
 export async function crearProducto(
   input: ProductoInput
@@ -100,33 +117,29 @@ export async function crearProducto(
     }
 
     // 5. Insertar variantes — empresa_id requerido por multitenant
-    let variantesParaInsertar: Array<{
+    // Estructura nueva: variantes.atributos jsonb generaliza el viejo par
+    // (color, talle). Sufijo de SKU determinístico a partir de los atributos
+    // ordenados alfabéticamente. Si la variante no tiene atributos, queda
+    // como DEFAULT (caso producto sin variantes reales).
+    type VarianteInsert = {
       producto_id: string
-      color: string | null
-      talle: string | null
+      atributos: Atributos
       sku_variante: string
       stock: number
       activa: boolean
       empresa_id: string
-    }> = []
+    }
+
+    let variantesParaInsertar: VarianteInsert[] = []
 
     if (data.tiene_variantes && data.variantes.length > 0) {
       variantesParaInsertar = data.variantes.map((v) => {
-        const colorTrim = v.color?.trim() || null
-        const talleTrim = v.talle?.trim() || null
-        const sufijos = [colorTrim, talleTrim]
-          .filter(Boolean)
-          .map((s) => s!.toUpperCase().replace(/\s+/g, '-'))
-        const skuVariante =
-          sufijos.length > 0
-            ? `${data.sku_base}-${sufijos.join('-')}`
-            : `${data.sku_base}-DEFAULT`
-
+        const atributos = pairsAObjeto(v.atributos ?? [])
+        const sufijo = sufijoSku(atributos)
         return {
           producto_id: producto.id,
-          color: colorTrim,
-          talle: talleTrim,
-          sku_variante: skuVariante,
+          atributos,
+          sku_variante: `${data.sku_base}-${sufijo}`,
           stock: v.stock,
           activa: true,
           empresa_id: user.empresa_id!,
@@ -137,8 +150,7 @@ export async function crearProducto(
       variantesParaInsertar = [
         {
           producto_id: producto.id,
-          color: null,
-          talle: null,
+          atributos: {},
           sku_variante: `${data.sku_base}-DEFAULT`,
           stock: data.track_stock ? data.stock_inicial : 0,
           activa: true,
@@ -165,23 +177,7 @@ export async function crearProducto(
       }
     }
 
-    // 6. Si tiene variantes con color/talle nuevos, agregarlos al catálogo
-    if (data.tiene_variantes) {
-      for (const variante of data.variantes) {
-        if (variante.color?.trim()) {
-          await supabase.rpc('buscar_o_crear_color', {
-            p_nombre: variante.color.trim(),
-          })
-        }
-        if (variante.talle?.trim()) {
-          await supabase.rpc('buscar_o_crear_talle', {
-            p_nombre: variante.talle.trim(),
-          })
-        }
-      }
-    }
-
-    // 7. Revalidar el listado
+    // 6. Revalidar el listado
     revalidatePath('/admin/productos')
 
     return {

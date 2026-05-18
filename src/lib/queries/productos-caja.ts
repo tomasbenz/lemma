@@ -1,12 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Atributos } from '@/lib/format-atributos'
 import type { Database } from '@/types/database'
 
 type ProductoRow = Database['public']['Tables']['productos']['Row']
 
 export type VarianteCaja = {
   id: string
-  color: string | null
-  talle: string | null
+  /**
+   * Atributos genéricos de la variante (color, tamaño, gramaje, formato, etc.).
+   * Generaliza el viejo par (color, talle) del proyecto Loom Point a un jsonb
+   * arbitrario para que la misma tabla `variantes` sirva a distintos rubros.
+   * Default {} para productos sin variantes (la variante DEFAULT del producto).
+   */
+  atributos: Atributos
   sku_variante: string
   stock: number
 }
@@ -24,7 +30,7 @@ export type ProductoCaja = Pick<
  * - Solo productos activos
  * - Solo variantes activas
  * - Ordenados alfabéticamente
- * - Sin paginación (max 500, para un catálogo de 100-200 es de sobra)
+ * - Sin paginación (max 500, suficiente para 100-200 productos típicos)
  */
 export async function listarProductosCaja(): Promise<ProductoCaja[]> {
   const supabase = await createClient()
@@ -40,7 +46,7 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
       categoria,
       imagen_url,
       track_stock,
-      variantes(id, color, talle, sku_variante, stock, activa)
+      variantes(id, atributos, sku_variante, stock, activa)
     `
     )
     .eq('activo', true)
@@ -57,8 +63,13 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
       .filter((v) => v.activa && v.sku_variante !== null)
       .map((v) => ({
         id: v.id,
-        color: v.color,
-        talle: v.talle,
+        // Supabase devuelve jsonb como Json (record/null). Lo coercemos a
+        // Record<string,string>: la app inserta siempre objetos planos de
+        // string→string, así que esta coerción es segura en runtime.
+        atributos:
+          v.atributos && typeof v.atributos === 'object' && !Array.isArray(v.atributos)
+            ? (v.atributos as Atributos)
+            : {},
         sku_variante: v.sku_variante as string,
         stock: v.stock ?? 0,
       }))

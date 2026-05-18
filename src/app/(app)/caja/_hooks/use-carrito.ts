@@ -5,6 +5,7 @@ import {
   calcularDescuentoAplicado,
   calcularDescuentoDesdeMonto,
 } from '@/lib/cobro/calculos'
+import type { Atributos } from '@/lib/format-atributos'
 
 export type ItemCarrito = {
   varianteId: string
@@ -12,8 +13,12 @@ export type ItemCarrito = {
   productoNombre: string
   productoSku: string
   imagenUrl: string | null
-  color: string | null
-  talle: string | null
+  /**
+   * Snapshot de atributos de la variante al momento de agregar al carrito.
+   * Generaliza el viejo par (color, talle) del proyecto Loom Point en un
+   * jsonb arbitrario. Default {} para variantes sin atributos.
+   */
+  atributos: Atributos
   skuVariante: string
   precioUnitarioNeto: number
   cantidad: number
@@ -21,7 +26,7 @@ export type ItemCarrito = {
   trackStock: boolean
 }
 
-const STORAGE_KEY = 'loom-point:carrito:v1'
+const STORAGE_KEY = 'lemma:carrito:v1'
 
 type DescuentoModo = 'porcentaje' | 'monto'
 

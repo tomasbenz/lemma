@@ -72,7 +72,7 @@ export function LoginForm() {
               <FormControl>
                 <Input
                   type="email"
-                  placeholder="tucuenta@designplus.com.ar"
+                  placeholder="tucuenta@libreriasamu.com.ar"
                   autoComplete="email"
                   autoFocus
                   disabled={isPending}

@@ -116,7 +116,7 @@ export type ParametrosBuildFECAESolicitar = {
   comprobanteAsociado?: ComprobanteAsociado
 }
 
-const ALICUOTA_IVA_ID = 5  // AFIP: Id=5 es 21%, único usado por Iconic Fashion (RI)
+const ALICUOTA_IVA_ID = 5  // AFIP: Id=5 es 21%, único usado actualmente (RI con productos gravados al 21%)
 const TOLERANCIA_MONTO = 0.01
 
 /**
@@ -127,8 +127,8 @@ const TOLERANCIA_MONTO = 0.01
  * - Alícuota fija = 21% (regla inviolable #5 de Tomás).
  * - Moneda fija = PES (pesos argentinos), MonCotiz=1.
  * - CantReg fija = 1 (emitimos de a una para idempotencia y simpleza).
- * - ImpTotConc, ImpOpEx, ImpTrib fijos = 0 (Iconic no opera fuera del
- *   IVA gravado; cuando aplique algún rubro raro se extiende esto).
+ * - ImpTotConc, ImpOpEx, ImpTrib fijos = 0 (operación dentro del IVA
+ *   gravado al 21%; cuando aplique algún rubro raro se extiende esto).
  *
  * Validaciones (throw AfipWsfeError ANTES de salir a red):
  * - cbteTipo no en [1, 2, 3, 6, 7, 8]

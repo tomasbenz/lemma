@@ -168,14 +168,13 @@ export async function obtenerProducto(id: string) {
 
   if (!data) return null
 
+  // Orden determinístico: primero activas, después por sku_variante (que
+  // se deriva de los atributos alfabéticamente vía sufijoSku()).
   const variantesOrdenadas = [...(data.variantes ?? [])].sort((a, b) => {
     if (a.activa !== b.activa) return a.activa ? -1 : 1
-    const colorA = (a.color ?? '').toLowerCase()
-    const colorB = (b.color ?? '').toLowerCase()
-    if (colorA !== colorB) return colorA.localeCompare(colorB)
-    const talleA = (a.talle ?? '').toLowerCase()
-    const talleB = (b.talle ?? '').toLowerCase()
-    return talleA.localeCompare(talleB)
+    const skuA = (a.sku_variante ?? '').toLowerCase()
+    const skuB = (b.sku_variante ?? '').toLowerCase()
+    return skuA.localeCompare(skuB)
   })
 
   return {

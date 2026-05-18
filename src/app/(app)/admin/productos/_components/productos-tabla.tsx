@@ -170,8 +170,12 @@ export function ProductosTabla({
                       variantesActivas={variantesActivas.map<VarianteStock>(
                         (v) => ({
                           id: v.id,
-                          color: v.color,
-                          talle: v.talle,
+                          atributos:
+                            v.atributos &&
+                            typeof v.atributos === 'object' &&
+                            !Array.isArray(v.atributos)
+                              ? (v.atributos as Record<string, string>)
+                              : {},
                           sku_variante: v.sku_variante,
                           stock: v.stock,
                         })

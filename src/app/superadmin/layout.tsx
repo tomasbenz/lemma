@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 
 export const metadata = {
-  title: 'Panel Superadmin · Loom Point',
+  title: 'Panel Superadmin · Lemma',
 }
 
 export default async function SuperadminLayout({

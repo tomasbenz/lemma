@@ -9,8 +9,12 @@ type ItemPayload = {
   productoNombre: string
   productoSku: string
   skuVariante: string
-  color: string | null
-  talle: string | null
+  /**
+   * Atributos snapshot al momento de armar el pedido offline. Generaliza
+   * el viejo par (color, talle) de Loom Point en un jsonb arbitrario.
+   * Vacío {} si la variante no tenía atributos (caso DEFAULT).
+   */
+  atributos: Record<string, string>
   cantidad: number
   precioUnitarioNeto: number
 }
@@ -85,8 +89,7 @@ export async function POST(request: Request) {
     producto_nombre: i.productoNombre,
     producto_sku: i.productoSku,
     variante_sku: i.skuVariante,
-    variante_color: i.color,
-    variante_talle: i.talle,
+    variante_atributos: i.atributos,
     cantidad: i.cantidad,
     precio_unitario_neto: i.precioUnitarioNeto,
     subtotal_neto: redondear(i.precioUnitarioNeto * i.cantidad),

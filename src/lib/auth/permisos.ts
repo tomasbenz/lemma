@@ -3,8 +3,8 @@
 // Helpers canonicos de permisos para evitar la replicacion
 // `if (user.rol === 'vendedor')` a lo largo del codigo.
 //
-// Regla del cliente Iconic Fashion: "Las cuentas de vendedoras pueden
-// organizar stock y pasar cuentas. NUNCA cobrar."
+// Regla operativa: las cuentas de vendedoras pueden organizar stock y
+// pasar cuentas, pero NUNCA cobrar.
 //
 // Traduccion al sistema:
 //   - vendedora puede armar pedidos en /caja y guardarlos

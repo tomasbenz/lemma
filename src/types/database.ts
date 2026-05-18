@@ -233,87 +233,56 @@ export type Database = {
           },
         ]
       }
-      catalogo_colores: {
+      categoria_atributos: {
         Row: {
           activo: boolean
+          categoria_id: string
           created_at: string
           empresa_id: string
-          hex: string | null
           id: string
           nombre: string
-          nombre_normalizado: string
+          obligatorio: boolean
+          opciones: Json | null
           orden: number
+          tipo: string
           updated_at: string
         }
         Insert: {
           activo?: boolean
+          categoria_id: string
           created_at?: string
           empresa_id: string
-          hex?: string | null
           id?: string
           nombre: string
-          nombre_normalizado: string
+          obligatorio?: boolean
+          opciones?: Json | null
           orden?: number
+          tipo?: string
           updated_at?: string
         }
         Update: {
           activo?: boolean
+          categoria_id?: string
           created_at?: string
           empresa_id?: string
-          hex?: string | null
           id?: string
           nombre?: string
-          nombre_normalizado?: string
+          obligatorio?: boolean
+          opciones?: Json | null
           orden?: number
+          tipo?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "catalogo_colores_empresa_id_fkey"
-            columns: ["empresa_id"]
+            foreignKeyName: "categoria_atributos_categoria_id_fkey"
+            columns: ["categoria_id"]
             isOneToOne: false
-            referencedRelation: "empresas"
+            referencedRelation: "catalogo_categorias"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      catalogo_talles: {
-        Row: {
-          activo: boolean
-          created_at: string
-          empresa_id: string
-          id: string
-          nombre: string
-          nombre_normalizado: string
-          orden: number
-          tipo: string | null
-          updated_at: string
-        }
-        Insert: {
-          activo?: boolean
-          created_at?: string
-          empresa_id: string
-          id?: string
-          nombre: string
-          nombre_normalizado: string
-          orden?: number
-          tipo?: string | null
-          updated_at?: string
-        }
-        Update: {
-          activo?: boolean
-          created_at?: string
-          empresa_id?: string
-          id?: string
-          nombre?: string
-          nombre_normalizado?: string
-          orden?: number
-          tipo?: string | null
-          updated_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "catalogo_talles_empresa_id_fkey"
+            foreignKeyName: "categoria_atributos_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
@@ -488,8 +457,12 @@ export type Database = {
           activo: boolean
           created_at: string
           eliminada_at: string | null
+          features: Json
           id: string
+          multi_caja: boolean
+          multi_sucursal: boolean
           nombre: string
+          rubro: string
           slug: string
           updated_at: string
         }
@@ -497,8 +470,12 @@ export type Database = {
           activo?: boolean
           created_at?: string
           eliminada_at?: string | null
+          features?: Json
           id?: string
+          multi_caja?: boolean
+          multi_sucursal?: boolean
           nombre: string
+          rubro?: string
           slug: string
           updated_at?: string
         }
@@ -506,12 +483,104 @@ export type Database = {
           activo?: boolean
           created_at?: string
           eliminada_at?: string | null
+          features?: Json
           id?: string
+          multi_caja?: boolean
+          multi_sucursal?: boolean
           nombre?: string
+          rubro?: string
           slug?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      sucursales: {
+        Row: {
+          activa: boolean
+          created_at: string
+          direccion: string | null
+          eliminada_at: string | null
+          empresa_id: string
+          id: string
+          localidad: string | null
+          nombre: string
+          provincia: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          direccion?: string | null
+          eliminada_at?: string | null
+          empresa_id: string
+          id?: string
+          localidad?: string | null
+          nombre: string
+          provincia?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          direccion?: string | null
+          eliminada_at?: string | null
+          empresa_id?: string
+          id?: string
+          localidad?: string | null
+          nombre?: string
+          provincia?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sucursales_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cajas: {
+        Row: {
+          activa: boolean
+          created_at: string
+          eliminada_at: string | null
+          id: string
+          nombre: string
+          sucursal_id: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          eliminada_at?: string | null
+          id?: string
+          nombre: string
+          sucursal_id: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          eliminada_at?: string | null
+          id?: string
+          nombre?: string
+          sucursal_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cajas_sucursal_id_fkey"
+            columns: ["sucursal_id"]
+            isOneToOne: false
+            referencedRelation: "sucursales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       facturas: {
         Row: {
@@ -704,10 +773,9 @@ export type Database = {
           producto_nombre: string
           producto_sku: string
           subtotal_neto: number
-          variante_color: string | null
+          variante_atributos: Json
           variante_id: string
           variante_sku: string
-          variante_talle: string | null
           venta_id: string
         }
         Insert: {
@@ -719,10 +787,9 @@ export type Database = {
           producto_nombre: string
           producto_sku: string
           subtotal_neto: number
-          variante_color?: string | null
+          variante_atributos?: Json
           variante_id: string
           variante_sku: string
-          variante_talle?: string | null
           venta_id: string
         }
         Update: {
@@ -734,10 +801,9 @@ export type Database = {
           producto_nombre?: string
           producto_sku?: string
           subtotal_neto?: number
-          variante_color?: string | null
+          variante_atributos?: Json
           variante_id?: string
           variante_sku?: string
-          variante_talle?: string | null
           venta_id?: string
         }
         Relationships: [
@@ -1091,7 +1157,7 @@ export type Database = {
       variantes: {
         Row: {
           activa: boolean
-          color: string | null
+          atributos: Json
           created_at: string
           empresa_id: string
           id: string
@@ -1099,12 +1165,11 @@ export type Database = {
           producto_id: string
           sku_variante: string | null
           stock: number
-          talle: string | null
           updated_at: string
         }
         Insert: {
           activa?: boolean
-          color?: string | null
+          atributos?: Json
           created_at?: string
           empresa_id: string
           id?: string
@@ -1112,12 +1177,11 @@ export type Database = {
           producto_id: string
           sku_variante?: string | null
           stock?: number
-          talle?: string | null
           updated_at?: string
         }
         Update: {
           activa?: boolean
-          color?: string | null
+          atributos?: Json
           created_at?: string
           empresa_id?: string
           id?: string
@@ -1125,7 +1189,6 @@ export type Database = {
           producto_id?: string
           sku_variante?: string | null
           stock?: number
-          talle?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1154,6 +1217,7 @@ export type Database = {
       }
       ventas: {
         Row: {
+          caja_id: string | null
           canal: Database["public"]["Enums"]["canal_venta"]
           cliente_id: string | null
           closed_at: string | null
@@ -1172,6 +1236,7 @@ export type Database = {
           recargo_motivo: string | null
           recargo_porcentaje_manual: number | null
           subtotal_neto: number
+          sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
           ultimo_error_facturacion: string | null
@@ -1182,6 +1247,7 @@ export type Database = {
           vista_at: string | null
         }
         Insert: {
+          caja_id?: string | null
           canal?: Database["public"]["Enums"]["canal_venta"]
           cliente_id?: string | null
           closed_at?: string | null
@@ -1200,6 +1266,7 @@ export type Database = {
           recargo_motivo?: string | null
           recargo_porcentaje_manual?: number | null
           subtotal_neto?: number
+          sucursal_id?: string | null
           tipo_factura?: Database["public"]["Enums"]["tipo_factura"]
           total?: number
           ultimo_error_facturacion?: string | null
@@ -1210,6 +1277,7 @@ export type Database = {
           vista_at?: string | null
         }
         Update: {
+          caja_id?: string | null
           canal?: Database["public"]["Enums"]["canal_venta"]
           cliente_id?: string | null
           closed_at?: string | null
@@ -1228,6 +1296,7 @@ export type Database = {
           recargo_motivo?: string | null
           recargo_porcentaje_manual?: number | null
           subtotal_neto?: number
+          sucursal_id?: string | null
           tipo_factura?: Database["public"]["Enums"]["tipo_factura"]
           total?: number
           ultimo_error_facturacion?: string | null
@@ -1449,46 +1518,6 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "ventas"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      buscar_o_crear_color: {
-        Args: { p_nombre: string }
-        Returns: {
-          activo: boolean
-          created_at: string
-          empresa_id: string
-          hex: string | null
-          id: string
-          nombre: string
-          nombre_normalizado: string
-          orden: number
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "catalogo_colores"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      buscar_o_crear_talle: {
-        Args: { p_nombre: string }
-        Returns: {
-          activo: boolean
-          created_at: string
-          empresa_id: string
-          id: string
-          nombre: string
-          nombre_normalizado: string
-          orden: number
-          tipo: string | null
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "catalogo_talles"
           isOneToOne: true
           isSetofReturn: false
         }

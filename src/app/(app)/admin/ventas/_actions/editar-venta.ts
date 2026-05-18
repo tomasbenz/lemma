@@ -11,8 +11,7 @@ export type EditarVentaItem = {
   productoNombre: string
   productoSku: string
   varianteSku: string
-  varianteColor: string | null
-  varianteTalle: string | null
+  varianteAtributos: Record<string, string>
   cantidad: number
   precioUnitarioNeto: number
 }
@@ -105,8 +104,7 @@ export async function editarVenta(
         producto_nombre: it.productoNombre,
         producto_sku: it.productoSku,
         variante_sku: it.varianteSku,
-        variante_color: it.varianteColor,
-        variante_talle: it.varianteTalle,
+        variante_atributos: it.varianteAtributos,
         cantidad: it.cantidad,
         precio_unitario_neto: round2(it.precioUnitarioNeto),
         subtotal_neto: subtotalNeto,

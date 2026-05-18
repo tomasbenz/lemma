@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { NumericInput } from '@/components/app/numeric-input'
 import { cn } from '@/lib/utils'
 import { formatARS } from '@/lib/format'
+import { nombreVariante } from '@/lib/format-atributos'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
 
 type SelectorVariantesProps = {
@@ -30,6 +31,14 @@ type SelectorVariantesProps = {
 
 type Cantidades = Record<string, number | null>
 
+/**
+ * Selector de variantes para la caja.
+ *
+ * Lista flat de variantes, cada una con su combinación de atributos formateada
+ * como label. Reemplazó la matriz color×talle del proyecto original (Loom Point)
+ * porque Lemma generaliza los atributos de variante a un jsonb arbitrario
+ * (color, tamaño, gramaje, formato, etc.) y no podemos asumir un eje 2D.
+ */
 export function SelectorVariantes({
   producto,
   open,
@@ -44,49 +53,13 @@ export function SelectorVariantes({
     }
   }, [open, producto])
 
-  const { colores, talles, tieneColores, tieneTalles, matriz } = useMemo(() => {
-    if (!producto) {
-      return {
-        colores: [] as string[],
-        talles: [] as string[],
-        tieneColores: false,
-        tieneTalles: false,
-        matriz: new Map<string, VarianteCaja>(),
-      }
-    }
-
-    const colSet = new Set<string>()
-    const talSet = new Set<string>()
-    const m = new Map<string, VarianteCaja>()
-
-    for (const v of producto.variantes) {
-      const c = v.color ?? '—'
-      const t = v.talle ?? '—'
-      colSet.add(c)
-      talSet.add(t)
-      m.set(`${c}|${t}`, v)
-    }
-
-    const tieneCol = [...colSet].some((c) => c !== '—')
-    const tieneTal = [...talSet].some((t) => t !== '—')
-
-    const ordenTalles = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']
-    const tallesOrdenados = [...talSet].sort((a, b) => {
-      const ai = ordenTalles.indexOf(a)
-      const bi = ordenTalles.indexOf(b)
-      if (ai !== -1 && bi !== -1) return ai - bi
-      if (ai !== -1) return -1
-      if (bi !== -1) return 1
-      return a.localeCompare(b)
-    })
-
-    return {
-      colores: [...colSet].sort((a, b) => a.localeCompare(b)),
-      talles: tallesOrdenados,
-      tieneColores: tieneCol,
-      tieneTalles: tieneTal,
-      matriz: m,
-    }
+  // Ordenamos las variantes por label de atributos para que el render sea
+  // determinístico independientemente del orden en que se cargaron en DB.
+  const variantesOrdenadas = useMemo(() => {
+    if (!producto) return []
+    return [...producto.variantes].sort((a, b) =>
+      nombreVariante(a.atributos).localeCompare(nombreVariante(b.atributos))
+    )
   }, [producto])
 
   const { totalUnidades, totalMonto, seleccion, hayInvalidas } = useMemo(() => {
@@ -137,8 +110,6 @@ export function SelectorVariantes({
   }, [])
 
   if (!producto) return null
-
-  const usarMatriz = tieneColores && tieneTalles
 
   function handleAgregar() {
     if (hayInvalidas) {
@@ -204,23 +175,12 @@ export function SelectorVariantes({
             Ingresá la cantidad a agregar al carrito para cada variante
           </p>
 
-          {usarMatriz ? (
-            <MatrizColorTalle
-              colores={colores}
-              talles={talles}
-              matriz={matriz}
-              trackStock={producto.track_stock}
-              cantidades={cantidades}
-              onCantidadChange={setCantidad}
-            />
-          ) : (
-            <ListaVariantes
-              variantes={producto.variantes}
-              trackStock={producto.track_stock}
-              cantidades={cantidades}
-              onCantidadChange={setCantidad}
-            />
-          )}
+          <ListaVariantes
+            variantes={variantesOrdenadas}
+            trackStock={producto.track_stock}
+            cantidades={cantidades}
+            onCantidadChange={setCantidad}
+          />
         </div>
 
         <div className="border-t p-4 bg-muted/20 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -268,101 +228,6 @@ export function SelectorVariantes({
   )
 }
 
-function MatrizColorTalle({
-  colores,
-  talles,
-  matriz,
-  trackStock,
-  cantidades,
-  onCantidadChange,
-}: {
-  colores: string[]
-  talles: string[]
-  matriz: Map<string, VarianteCaja>
-  trackStock: boolean
-  cantidades: Cantidades
-  onCantidadChange: (varianteId: string, valor: number | null) => void
-}) {
-  const gridCols = `minmax(80px, 110px) repeat(${talles.length}, minmax(70px, 1fr))`
-
-  return (
-    <div className="w-full overflow-x-auto no-scrollbar pb-1">
-      <div
-        className="grid gap-y-1"
-        style={{ gridTemplateColumns: gridCols }}
-      >
-        <div className="py-2 text-left text-xs font-medium text-muted-foreground border-b">
-          Color / Talle
-        </div>
-        {talles.map((t) => (
-          <div
-            key={`h-${t}`}
-            className="py-2 text-center text-xs font-medium border-b"
-          >
-            {t}
-          </div>
-        ))}
-
-        {colores.map((c) => (
-          <RowColor
-            key={c}
-            color={c}
-            talles={talles}
-            matriz={matriz}
-            trackStock={trackStock}
-            cantidades={cantidades}
-            onCantidadChange={onCantidadChange}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const RowColor = memo(function RowColor({
-  color,
-  talles,
-  matriz,
-  trackStock,
-  cantidades,
-  onCantidadChange,
-}: {
-  color: string
-  talles: string[]
-  matriz: Map<string, VarianteCaja>
-  trackStock: boolean
-  cantidades: Cantidades
-  onCantidadChange: (varianteId: string, valor: number | null) => void
-}) {
-  return (
-    <>
-      <div className="py-3 px-1 text-sm font-medium border-b flex items-center">
-        {color}
-      </div>
-      {talles.map((t) => {
-        const variante = matriz.get(`${color}|${t}`)
-        return (
-          <div key={t} className="py-2 border-b flex items-start justify-center">
-            {!variante ? (
-              <div className="flex h-[56px] items-center justify-center text-muted-foreground/30 text-xs">
-                —
-              </div>
-            ) : (
-              <CeldaVarianteMemo
-                varianteId={variante.id}
-                stock={variante.stock}
-                trackStock={trackStock}
-                valor={cantidades[variante.id] ?? null}
-                onChange={onCantidadChange}
-              />
-            )}
-          </div>
-        )
-      })}
-    </>
-  )
-})
-
 function ListaVariantes({
   variantes,
   trackStock,
@@ -377,7 +242,7 @@ function ListaVariantes({
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
       {variantes.map((v) => {
-        const label = [v.color, v.talle].filter(Boolean).join(' / ') || 'Única'
+        const label = nombreVariante(v.atributos)
         return (
           <div
             key={v.id}

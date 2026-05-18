@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatARS, formatNumber } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { AnularVentaButton } from '../_components/anular-venta-button'
 import { descomponerFactura } from '@/lib/afip/calculos'
@@ -98,8 +99,7 @@ export default async function VentaDetallePage({
     producto_nombre: string
     producto_sku: string
     variante_sku: string
-    variante_color: string | null
-    variante_talle: string | null
+    variante_atributos: Record<string, string> | null
     cantidad: number
     precio_unitario_neto: number
     subtotal_neto: number
@@ -407,10 +407,7 @@ export default async function VentaDetallePage({
               </TableHeader>
               <TableBody>
                 {items.map((i) => {
-                  const variante =
-                    [i.variante_color, i.variante_talle]
-                      .filter(Boolean)
-                      .join(' / ') || '—'
+                  const variante = formatAtributos(i.variante_atributos) || '—'
                   return (
                     <TableRow key={i.id}>
                       <TableCell className="text-sm font-medium">

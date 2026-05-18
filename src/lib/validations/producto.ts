@@ -1,19 +1,36 @@
 import { z } from 'zod'
 
 /**
- * Schema para una variante individual
+ * Atributo individual de una variante: par clave/valor de texto libre.
+ *
+ * Reemplazo del viejo modelo (color: string, talle: string) heredado del
+ * proyecto Loom Point (textil). Lemma generaliza para soportar cualquier
+ * combinación de atributos por categoría (color, tamaño, formato, gramaje,
+ * presentación, sabor, edición, etc.).
+ */
+export const atributoSchema = z.object({
+  clave: z
+    .string()
+    .min(1, 'Falta el nombre del atributo')
+    .max(50, 'Máximo 50 caracteres'),
+  valor: z
+    .string()
+    .min(1, 'Falta el valor')
+    .max(100, 'Máximo 100 caracteres'),
+})
+
+export type AtributoInput = z.infer<typeof atributoSchema>
+
+/**
+ * Schema para una variante individual.
+ *
+ * Estructura:
+ *  - atributos: array de pares (clave, valor) que se serializa a jsonb en DB.
+ *    Si es vacío [], la variante es DEFAULT (sin atributos distintivos).
+ *  - stock: stock inicial entero >= 0.
  */
 export const varianteSchema = z.object({
-  color: z
-    .string()
-    .max(50, 'Máximo 50 caracteres')
-    .optional()
-    .or(z.literal('')),
-  talle: z
-    .string()
-    .max(20, 'Máximo 20 caracteres')
-    .optional()
-    .or(z.literal('')),
+  atributos: z.array(atributoSchema).default([]),
   stock: z
     .number()
     .int('Debe ser un número entero')

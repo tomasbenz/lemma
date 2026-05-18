@@ -1,6 +1,7 @@
 // src/app/(app)/caja/page.tsx
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { isRecargoManualHabilitado } from '@/lib/features'
 import { CajaView } from './_components/caja-view'
 
 export const metadata = {
@@ -23,5 +24,17 @@ export default async function CajaPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
 
-  return <CajaView user={user} />
+  // Feature flag: si la empresa no habilitó recargo manual, los toggles
+  // (10,5%, recargo manual %, presets 30/50/100) quedan ocultos. Para
+  // Lemma + Samu el default es false → flujo simple sin recargos.
+  const recargoManualHabilitado = user.empresa_id
+    ? await isRecargoManualHabilitado(user.empresa_id)
+    : false
+
+  return (
+    <CajaView
+      user={user}
+      recargoManualHabilitado={recargoManualHabilitado}
+    />
+  )
 }

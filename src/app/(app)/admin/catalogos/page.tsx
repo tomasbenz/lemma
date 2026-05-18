@@ -1,11 +1,7 @@
 // src/app/(app)/admin/catalogos/page.tsx
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
-import {
-  listarColoresAdmin,
-  listarTallesAdmin,
-  listarCategoriasAdmin,
-} from '@/lib/queries/catalogos'
+import { listarCategoriasAdmin } from '@/lib/queries/catalogos'
 import { CatalogosView } from './_components/catalogos-view'
 
 export const metadata = {
@@ -17,11 +13,7 @@ export default async function CatalogosPage() {
   if (!user) redirect('/login')
   if (user.rol === 'vendedor') redirect('/caja')
 
-  const [colores, talles, categorias] = await Promise.all([
-    listarColoresAdmin(),
-    listarTallesAdmin(),
-    listarCategoriasAdmin(),
-  ])
+  const categorias = await listarCategoriasAdmin()
 
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8">
@@ -31,15 +23,13 @@ export default async function CatalogosPage() {
             Catálogos
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Categorías, talles y colores disponibles al crear productos
+            Categorías disponibles al crear productos. Los atributos de
+            variante por categoría (color, formato, gramaje, etc.) se
+            configuran vía base de datos por ahora.
           </p>
         </div>
 
-        <CatalogosView
-          colores={colores}
-          talles={talles}
-          categorias={categorias}
-        />
+        <CatalogosView categorias={categorias} />
       </div>
     </div>
   )

@@ -1,4 +1,9 @@
-# Security audit log — Loom Point
+# Security audit log — Lemma
+
+> Histórico heredado del proyecto Loom Point (clonado para Lemma). Las
+> decisiones de seguridad documentadas acá siguen aplicando porque el
+> schema base es el mismo.
+
 
 ## 2026-05-03 — Phase 5b: REVOKE sa_* functions
 Estado anterior: las 5 funciones sa_* tenían EXECUTE para PUBLIC/anon/authenticated.

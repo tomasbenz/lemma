@@ -1,8 +1,11 @@
-# Loom Point — Contexto del proyecto
+# Lemma — Contexto del proyecto
 
 ## Qué es
-B2B POS multi-tenant para showrooms mayoristas de indumentaria.
-Cliente actual: Design Plus (Avellaneda).
+B2B POS multi-tenant para librerías argentinas (papelería, útiles escolares,
+materiales de arte, regalería, libros). En Argentina "librería" NO es bookstore:
+es papelería + útiles escolares + arte; los productos se identifican por
+SKU/código de barras propio, no por ISBN/editorial/autor.
+Cliente actual: Librería Samu.
 
 ## Stack
 - Next.js 16 (App Router), TypeScript estricto
@@ -12,7 +15,7 @@ Cliente actual: Design Plus (Avellaneda).
 - PWA offline-first con Serwist + Dexie (IndexedDB)
 - recharts para reportes
 
-## Identidad visual (Design Plus)
+## Identidad visual
 - Paleta achromatic ESTRICTA: #000000, #FFFFFF, #F0F0F0, #DFDBDB
 - Sin color de acento
 - Sin scrollbars visibles → clase `.no-scrollbar` en todo overflow
@@ -23,26 +26,28 @@ Cliente actual: Design Plus (Avellaneda).
 - Service worker + IndexedDB cache de catálogo
 - Cola de pedidos offline con `/api/sync/orders`
 - `limpiarDBLocal()` se ejecuta en logout
+- Variantes generalizadas por categoría: `variantes.atributos jsonb` +
+  tabla `categoria_atributos` define qué atributos espera cada categoría
+  (color, tamaño, presentación, gramaje, etc.)
+- Multi-sucursal y multi-caja opcionales (`empresas.multi_sucursal/multi_caja`).
+  Para empresas single-local hay sucursal y caja default automáticas.
 
 ## Migrations SQL — IMPORTANTE
-NO están versionadas actualmente (deuda técnica).
-Cambios de schema se hacen directo en SQL editor de Supabase Cloud.
-Plan a futuro: empezar a versionar en `supabase/migrations/` para que 
-cambios de schema queden en Git.
+Versionadas en `supabase/migrations/`. La migración inicial
+`00000000000000_init_lemma.sql` consolida el schema base de Lemma.
+Cambios de schema se hacen creando un archivo nuevo con timestamp.
+NUNCA aplicar a la DB de prod automáticamente — Tomás lo aplica a mano.
 
 Cuando se necesite cambiar schema:
 - Generar archivo SQL en `supabase/migrations/` con timestamp y nombre descriptivo
 - NUNCA aplicar a la DB de prod automáticamente — Tomás lo aplica a mano
 
 ## Estado de seguridad
-- RLS ACTIVO en todas las tablas (tabla `usuarios` se arregló el 28/04)
-- Política `mp_webhooks_select` permisiva — DROPEADA
+- RLS ACTIVO en todas las tablas
 - 6 funciones SECURITY DEFINER hardeneadas con check `auth.uid() = p_usuario_id`:
-  cerrar_venta, guardar_pedido, finalizar_pedido, ajustar_stock, anular_pedido
-- Endpoint debug `/api/debug/rls-usuarios` ELIMINADO (commit 333d188)
-- Función SQL `debug_rls_contexto()` ELIMINADA de Supabase
-- Auditoría `sa_*` COMPLETADA (phase 5b, 03/05/2026):
-  REVOKE EXECUTE de PUBLIC/anon/authenticated en las 5 funciones sa_*.
+  cerrar_venta, guardar_pedido, finalizar_pedido, ajustar_stock, anular_pedido,
+  editar_venta, editar_pedido
+- Auditoría `sa_*`: REVOKE EXECUTE de PUBLIC/anon/authenticated en las funciones sa_*.
   Defense in depth: permisos Postgres + check interno es_superadmin().
   Solo invocables desde server-side con service role.
 
@@ -60,10 +65,17 @@ Decisión + justificación corta + solución, en ese orden.
 - Idioma: rioplatense (vos, dale, joya)
 - Credenciales en `.env.local`
 
-## Pendientes
-- **Inline edits a `modal-cobro.tsx`**: workflow vendedora-sin-facturación
-- **Feature VAT/invoicing** para Design Plus (esperando questionnaire del cliente)
-- **Deuda técnica**: introducir flujo de migrations versionadas en `supabase/migrations/`
+## Feature flags por empresa
+Tabla `empresas` tiene columna `features jsonb` para flags por tenant.
+Helper: `getEmpresaFeatures(empresaId)` y específicos como
+`isRecargoManualHabilitado(empresaId)` en `src/lib/features.ts`.
+
+Feature flags actuales soportados:
+- `recargo_manual_habilitado`: muestra el toggle de recargo manual y
+  el switch de "Cobrar 10,5% extra" en la UI de cobro. Default false.
+  El código y columnas (`recargo_porcentaje_manual`, `recargo_motivo`,
+  `recargo_factura_completa`, `monto_facturado`, `porcentaje_facturado`)
+  quedan dormidos pero funcionales para empresas que activen el flag.
 
 ## Patrón de seguridad en server actions multi-tenant
 
@@ -89,5 +101,3 @@ Mensajes genéricos a usar (consistencia entre endpoints):
 Razón: aunque RLS cubra el caso, defense in depth + error indistinguible 
 entre "no existe" y "es de otra empresa" previene information disclosure 
 y bugs por configuración mal hecha de RLS.
-
-Aplicado en S-1 (PR feb-may 2026) y S-2 (PR may 2026).

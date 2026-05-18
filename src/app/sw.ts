@@ -1,6 +1,6 @@
 // src/app/sw.ts
 //
-// Service Worker de Loom Point.
+// Service Worker de Lemma.
 //
 // FASE 1: precache de assets de la app, runtime caching de imágenes y páginas.
 // Sin lógica de pedidos offline todavía (eso es Fase 3).
@@ -42,7 +42,7 @@ const serwist = new Serwist({
   //   - Imágenes: StaleWhileRevalidate
   //   - Fonts: CacheFirst con expiración larga
   //   - APIs: NetworkFirst con timeout
-  // Las APIs y Server Actions de Loom Point NO se cachean — la lógica offline
+  // Las APIs y Server Actions de Lemma NO se cachean — la lógica offline
   // de pedidos/catálogo vive en IndexedDB (Fases 2-3), no acá.
   runtimeCaching: defaultCache,
 })

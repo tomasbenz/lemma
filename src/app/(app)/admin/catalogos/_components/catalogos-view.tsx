@@ -10,8 +10,6 @@ import {
   EyeOff,
   Loader2,
   AlertCircle,
-  Ruler,
-  Palette,
   FolderTree,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,12 +18,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -56,83 +48,43 @@ import {
   setCatalogoItemActivo,
 } from '../_actions/catalogos-actions'
 
-type Tabla = 'catalogo_colores' | 'catalogo_talles' | 'catalogo_categorias'
-
+/**
+ * Vista de catálogos.
+ *
+ * El refactor de Lemma generalizó variantes a un jsonb `atributos` y
+ * eliminó las tablas `catalogo_talles` y `catalogo_colores` (eran
+ * específicas del rubro textil del cliente original Loom Point).
+ *
+ * Acá solo queda CRUD de categorías. La definición de atributos
+ * esperados por categoría (`categoria_atributos`) tiene su propio CRUD
+ * pendiente y se gestiona por ahora vía la migración seed o SQL directo.
+ */
 export function CatalogosView({
-  colores,
-  talles,
   categorias,
 }: {
-  colores: CatalogoItemAdmin[]
-  talles: CatalogoItemAdmin[]
   categorias: CatalogoItemAdmin[]
 }) {
   return (
-    <Tabs defaultValue="categorias" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="categorias" className="gap-2">
-          <FolderTree className="size-4" />
-          Categorías ({categorias.filter((c) => c.activo).length})
-        </TabsTrigger>
-        <TabsTrigger value="talles" className="gap-2">
-          <Ruler className="size-4" />
-          Talles ({talles.filter((t) => t.activo).length})
-        </TabsTrigger>
-        <TabsTrigger value="colores" className="gap-2">
-          <Palette className="size-4" />
-          Colores ({colores.filter((c) => c.activo).length})
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="categorias">
-        <CatalogoTab
-          tabla="catalogo_categorias"
-          items={categorias}
-          singular="categoría"
-          plural="categorías"
-          tieneHex={false}
-          placeholderNombre="Ej: Pollera, Top, Vestido, Accesorio"
-        />
-      </TabsContent>
-
-      <TabsContent value="talles">
-        <CatalogoTab
-          tabla="catalogo_talles"
-          items={talles}
-          singular="talle"
-          plural="talles"
-          tieneHex={false}
-          placeholderNombre="Ej: M, L, 38, 40"
-        />
-      </TabsContent>
-
-      <TabsContent value="colores">
-        <CatalogoTab
-          tabla="catalogo_colores"
-          items={colores}
-          singular="color"
-          plural="colores"
-          tieneHex={true}
-          placeholderNombre="Ej: Negro, Bordó, Azul francia"
-        />
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-4">
+      <CatalogoTab
+        items={categorias}
+        singular="categoría"
+        plural="categorías"
+        placeholderNombre="Ej: Cuadernos, Lápices, Témperas"
+      />
+    </div>
   )
 }
 
 function CatalogoTab({
-  tabla,
   items,
   singular,
   plural,
-  tieneHex,
   placeholderNombre,
 }: {
-  tabla: Tabla
   items: CatalogoItemAdmin[]
   singular: string
   plural: string
-  tieneHex: boolean
   placeholderNombre: string
 }) {
   const [crearOpen, setCrearOpen] = useState(false)
@@ -144,14 +96,14 @@ function CatalogoTab({
   return (
     <>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-muted-foreground">
-          {activos.length}{' '}
-          {activos.length === 1
-            ? `${singular} ${singular.endsWith('a') ? 'activa' : 'activo'}`
-            : `${plural} ${plural.endsWith('s') ? (plural.endsWith('as') ? 'activas' : 'activos') : 'activos'}`}
-          {inactivos.length > 0 &&
-            ` · ${inactivos.length} ${inactivos.length === 1 ? 'inactivo' : 'inactivos'}`}
-        </p>
+        <div className="flex items-center gap-2">
+          <FolderTree className="size-4 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            {activos.length} {plural} {plural === 'categorías' ? 'activas' : 'activos'}
+            {inactivos.length > 0 &&
+              ` · ${inactivos.length} ${inactivos.length === 1 ? 'inactivo' : 'inactivos'}`}
+          </p>
+        </div>
         <Button size="sm" onClick={() => setCrearOpen(true)}>
           <Plus className="size-4 mr-2" />
           Nueva {singular}
@@ -174,7 +126,6 @@ function CatalogoTab({
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="w-16">Orden</TableHead>
                   <TableHead>Nombre</TableHead>
-                  {tieneHex && <TableHead className="w-20">Color</TableHead>}
                   <TableHead className="w-24 text-center">Uso</TableHead>
                   <TableHead className="w-28">Estado</TableHead>
                   <TableHead className="w-12"></TableHead>
@@ -192,26 +143,6 @@ function CatalogoTab({
                     <TableCell className="font-medium text-sm">
                       {item.nombre}
                     </TableCell>
-                    {tieneHex && (
-                      <TableCell>
-                        {item.hex ? (
-                          <div className="flex items-center gap-1.5">
-                            <div
-                              className="size-5 rounded border border-border shrink-0"
-                              style={{ backgroundColor: item.hex }}
-                              title={item.hex}
-                            />
-                            <span className="text-[10px] font-numeric text-muted-foreground">
-                              {item.hex}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                    )}
                     <TableCell className="text-center">
                       {item.uso_count > 0 ? (
                         <Badge variant="outline" className="text-xs">
@@ -263,12 +194,12 @@ function CatalogoTab({
                             <DropdownMenuItem
                               onSelect={async () => {
                                 const result = await setCatalogoItemActivo(
-                                  tabla,
+                                  'catalogo_categorias',
                                   item.id,
                                   false
                                 )
                                 if (!result.ok) toast.error(result.error)
-                                else toast.success(`${singular} desactivado`)
+                                else toast.success(`${singular} desactivada`)
                               }}
                               className="text-destructive focus:text-destructive"
                             >
@@ -279,12 +210,12 @@ function CatalogoTab({
                             <DropdownMenuItem
                               onSelect={async () => {
                                 const result = await setCatalogoItemActivo(
-                                  tabla,
+                                  'catalogo_categorias',
                                   item.id,
                                   true
                                 )
                                 if (!result.ok) toast.error(result.error)
-                                else toast.success(`${singular} reactivado`)
+                                else toast.success(`${singular} reactivada`)
                               }}
                               className="text-success focus:text-success"
                             >
@@ -306,18 +237,14 @@ function CatalogoTab({
       <CrearItemDialog
         open={crearOpen}
         onOpenChange={setCrearOpen}
-        tabla={tabla}
         singular={singular}
-        tieneHex={tieneHex}
         placeholderNombre={placeholderNombre}
       />
 
       {editTarget && (
         <EditarItemDialog
           item={editTarget}
-          tabla={tabla}
           singular={singular}
-          tieneHex={tieneHex}
           onClose={() => setEditTarget(null)}
         />
       )}
@@ -328,29 +255,21 @@ function CatalogoTab({
 function CrearItemDialog({
   open,
   onOpenChange,
-  tabla,
   singular,
-  tieneHex,
   placeholderNombre,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  tabla: Tabla
   singular: string
-  tieneHex: boolean
   placeholderNombre: string
 }) {
   const [isPending, startTransition] = useTransition()
   const [nombre, setNombre] = useState('')
-  const [hex, setHex] = useState('#000000')
-  const [usaHex, setUsaHex] = useState(false)
   const [orden, setOrden] = useState('0')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   function reset() {
     setNombre('')
-    setHex('#000000')
-    setUsaHex(false)
     setOrden('0')
     setErrors({})
   }
@@ -364,9 +283,8 @@ function CrearItemDialog({
     setErrors({})
     startTransition(async () => {
       const result = await crearCatalogoItem({
-        tabla,
+        tabla: 'catalogo_categorias',
         nombre,
-        hex: tieneHex && usaHex ? hex : null,
         orden: parseInt(orden, 10) || 0,
       })
       if (!result.ok) {
@@ -374,7 +292,7 @@ function CrearItemDialog({
         else toast.error(result.error)
         return
       }
-      toast.success(`${singular} creado`)
+      toast.success(`${singular} creada`)
       handleClose(false)
     })
   }
@@ -400,42 +318,6 @@ function CrearItemDialog({
             />
             {errors.nombre && <ErrorText msg={errors.nombre} />}
           </div>
-
-          {tieneHex && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="hex">Color (opcional)</Label>
-                <button
-                  type="button"
-                  onClick={() => setUsaHex(!usaHex)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {usaHex ? 'Quitar' : 'Agregar'}
-                </button>
-              </div>
-              {usaHex && (
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={hex}
-                    onChange={(e) => setHex(e.target.value)}
-                    disabled={isPending}
-                    className="size-10 rounded border border-border cursor-pointer shrink-0"
-                  />
-                  <Input
-                    id="hex"
-                    value={hex}
-                    onChange={(e) => setHex(e.target.value)}
-                    placeholder="#000000"
-                    maxLength={7}
-                    disabled={isPending}
-                    className="font-numeric"
-                  />
-                </div>
-              )}
-              {errors.hex && <ErrorText msg={errors.hex} />}
-            </div>
-          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="orden">Orden</Label>
@@ -473,21 +355,15 @@ function CrearItemDialog({
 
 function EditarItemDialog({
   item,
-  tabla,
   singular,
-  tieneHex,
   onClose,
 }: {
   item: CatalogoItemAdmin
-  tabla: Tabla
   singular: string
-  tieneHex: boolean
   onClose: () => void
 }) {
   const [isPending, startTransition] = useTransition()
   const [nombre, setNombre] = useState(item.nombre)
-  const [hex, setHex] = useState(item.hex ?? '#000000')
-  const [usaHex, setUsaHex] = useState(!!item.hex)
   const [orden, setOrden] = useState(String(item.orden))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -495,10 +371,9 @@ function EditarItemDialog({
     setErrors({})
     startTransition(async () => {
       const result = await editarCatalogoItem({
-        tabla,
+        tabla: 'catalogo_categorias',
         id: item.id,
         nombre,
-        hex: tieneHex && usaHex ? hex : null,
         orden: parseInt(orden, 10) || 0,
       })
       if (!result.ok) {
@@ -506,7 +381,7 @@ function EditarItemDialog({
         else toast.error(result.error)
         return
       }
-      toast.success(`${singular} actualizado`)
+      toast.success(`${singular} actualizada`)
       onClose()
     })
   }
@@ -519,14 +394,8 @@ function EditarItemDialog({
           {item.uso_count > 0 && (
             <DialogDescription>
               Se usa en {item.uso_count}{' '}
-              {tabla === 'catalogo_categorias'
-                ? item.uso_count === 1
-                  ? 'producto'
-                  : 'productos'
-                : item.uso_count === 1
-                  ? 'variante'
-                  : 'variantes'}
-              . Cambiar el nombre puede afectar reportes históricos.
+              {item.uso_count === 1 ? 'producto' : 'productos'}. Cambiar el
+              nombre puede afectar reportes históricos.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -544,42 +413,6 @@ function EditarItemDialog({
             />
             {errors.nombre && <ErrorText msg={errors.nombre} />}
           </div>
-
-          {tieneHex && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="hex">Color (opcional)</Label>
-                <button
-                  type="button"
-                  onClick={() => setUsaHex(!usaHex)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {usaHex ? 'Quitar' : 'Agregar'}
-                </button>
-              </div>
-              {usaHex && (
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={hex}
-                    onChange={(e) => setHex(e.target.value)}
-                    disabled={isPending}
-                    className="size-10 rounded border border-border cursor-pointer shrink-0"
-                  />
-                  <Input
-                    id="hex"
-                    value={hex}
-                    onChange={(e) => setHex(e.target.value)}
-                    placeholder="#000000"
-                    maxLength={7}
-                    disabled={isPending}
-                    className="font-numeric"
-                  />
-                </div>
-              )}
-              {errors.hex && <ErrorText msg={errors.hex} />}
-            </div>
-          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="orden">Orden</Label>

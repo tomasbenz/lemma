@@ -537,7 +537,7 @@ export function ReportePdf({ data, modo = 'dark' }: Props) {
               `Página ${pageNumber} de ${totalPages}`
             }
           />
-          <Text>Loom Point</Text>
+          <Text>Lemma</Text>
         </View>
       </Page>
     </Document>

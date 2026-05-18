@@ -4,8 +4,8 @@
 // desde el server hacia IndexedDB.
 //
 // Estrategia: replace all. Cada sync borra la cache local y la repuebla
-// con la data fresca del server. Para Design Plus (cientos de productos)
-// es trivial en performance (<200ms total).
+// con la data fresca del server. Para una librería típica (cientos a miles
+// de productos) es trivial en performance (<200ms total).
 //
 // Errores: si el sync falla por cualquier razón (sin internet, server caído,
 // 401), NO se borra la cache local. Mantenemos lo que teníamos antes.

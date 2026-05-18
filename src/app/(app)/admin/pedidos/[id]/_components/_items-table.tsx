@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatARS, formatNumber } from '@/lib/format'
+import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import type { PedidoItem } from '@/lib/queries/pedidos'
 
@@ -63,9 +64,7 @@ function ItemRow({
   item: PedidoItem
   problemas: string[]
 }) {
-  const varianteLabel =
-    [item.variante_color, item.variante_talle].filter(Boolean).join(' / ') ||
-    '—'
+  const varianteLabel = formatAtributos(item.variante_atributos) || '—'
   const tieneProblemas = problemas.length > 0
 
   return (

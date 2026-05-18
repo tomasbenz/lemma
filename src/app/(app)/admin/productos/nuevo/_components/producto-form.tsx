@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useDebouncedCallback } from "use-debounce";
-import { Plus, Trash2, Package, Check, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Package, Check, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { ComboboxCatalogo } from "@/components/app/combobox-catalogo";
 import { NumericInput } from "@/components/app/numeric-input";
 import { ImagenProductoUpload } from "../../_components/imagen-producto-upload";
-import type { CatalogoItem } from "@/lib/queries/catalogos";
 import {
   productoSchema,
   type ProductoInput,
@@ -49,13 +47,21 @@ export type ProductoFormInitialData = ProductoInput & {
   id: string;
 };
 
+/**
+ * Form de producto con variantes generalizadas por atributos arbitrarios.
+ *
+ * Cada variante tiene un array de pares (clave, valor) que se serializa al
+ * jsonb `atributos`. Reemplaza el wizard color/talle del proyecto Loom Point
+ * (textil) por un esquema flexible que sirve a cualquier rubro: librería
+ * (color, formato, gramaje), alimentos (presentación, sabor), etc.
+ *
+ * Futuro: cuando exista `categoria_atributos` poblado, el form puede leer
+ * los atributos esperados para la categoría seleccionada y renderizar
+ * fields dinámicos en vez de pares key/value libres.
+ */
 export function ProductoForm({
-  colores,
-  talles,
   initialData,
 }: {
-  colores: CatalogoItem[];
-  talles: CatalogoItem[];
   initialData?: ProductoFormInitialData;
 }) {
   const router = useRouter();
@@ -144,7 +150,7 @@ export function ProductoForm({
   const onToggleVariantes = (checked: boolean) => {
     form.setValue("tiene_variantes", checked);
     if (checked && fields.length === 0) {
-      append({ color: "", talle: "", stock: 0 });
+      append({ atributos: [], stock: 0 });
     }
   };
 
@@ -233,7 +239,7 @@ export function ProductoForm({
                   <FormLabel>Nombre *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Remera básica cuello redondo"
+                      placeholder="Ej: Cuaderno A4 tapa dura 80h"
                       {...field}
                     />
                   </FormControl>
@@ -250,7 +256,7 @@ export function ProductoForm({
                   <FormLabel>Categoría</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Remeras, Buzos, Accesorios"
+                      placeholder="Ej: Cuadernos, Lápices, Témperas"
                       {...field}
                     />
                   </FormControl>
@@ -275,7 +281,7 @@ export function ProductoForm({
                     <FormControl>
                       <div className="relative">
                         <Input
-                          placeholder="REM-001"
+                          placeholder="CUA-001"
                           {...field}
                           className="font-numeric pr-9"
                           onChange={(e) => {
@@ -347,7 +353,7 @@ export function ProductoForm({
                   <FormLabel>Descripción corta</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Ej: Remera 100% algodón, corte regular"
+                      placeholder="Ej: Cuaderno tapa dura, hojas rayadas, 80 hojas"
                       rows={3}
                       {...field}
                     />
@@ -384,8 +390,8 @@ export function ProductoForm({
                   <div className="space-y-1 leading-none">
                     <FormLabel>Este producto tiene variantes</FormLabel>
                     <FormDescription className="text-xs">
-                      Ej: distintos colores, talles, tamaños, etc. Cada variante
-                      maneja su propio stock.
+                      Ej: distintos colores, formatos, gramajes, presentaciones.
+                      Cada variante maneja su propio stock.
                     </FormDescription>
                   </div>
                 </FormItem>
@@ -428,7 +434,7 @@ export function ProductoForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ color: "", talle: "", stock: 0 })}
+                    onClick={() => append({ atributos: [], stock: 0 })}
                   >
                     <Plus className="size-4 mr-1" />
                     Agregar variante
@@ -443,87 +449,12 @@ export function ProductoForm({
 
                 <div className="space-y-2">
                   {fields.map((field, index) => (
-                    <div
+                    <VarianteFields
                       key={field.id}
-                      className="grid grid-cols-12 gap-2 p-3 rounded-md border bg-muted/20"
-                    >
-                      <FormField
-                        control={form.control}
-                        name={`variantes.${index}.color`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-4">
-                            <FormLabel className="text-xs">Color</FormLabel>
-                            <FormControl>
-                              <ComboboxCatalogo
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                                options={colores}
-                                placeholder="Seleccionar color"
-                                searchPlaceholder="Buscar o escribir color..."
-                                emptyLabel="No hay colores en el catálogo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`variantes.${index}.talle`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-6 sm:col-span-3">
-                            <FormLabel className="text-xs">Talle</FormLabel>
-                            <FormControl>
-                              <ComboboxCatalogo
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                                options={talles}
-                                placeholder="Seleccionar talle"
-                                searchPlaceholder="Buscar o escribir talle..."
-                                emptyLabel="No hay talles en el catálogo"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`variantes.${index}.stock`}
-                        render={({ field }) => (
-                          <FormItem className="col-span-4 sm:col-span-3">
-                            <FormLabel className="text-xs">Stock</FormLabel>
-                            <FormControl>
-                              <NumericInput
-                                value={field.value ?? null}
-                                onChange={(v) => field.onChange(v ?? 0)}
-                                decimals={0}
-                                min={0}
-                                allowEmpty
-                                placeholder="0"
-                                className="font-numeric"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="col-span-2 flex items-end justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                          <span className="sr-only">Quitar variante</span>
-                        </Button>
-                      </div>
-                    </div>
+                      form={form}
+                      varianteIndex={index}
+                      onRemove={() => remove(index)}
+                    />
                   ))}
                 </div>
 
@@ -562,5 +493,142 @@ export function ProductoForm({
         </div>
       </form>
     </Form>
+  );
+}
+
+/**
+ * Render de una variante individual: pares clave/valor de atributos + stock.
+ *
+ * useFieldArray anidado para que la usuaria pueda agregar/quitar atributos
+ * dinámicamente. Si la categoría tiene atributos definidos en
+ * `categoria_atributos`, futuro: prellenar las claves esperadas.
+ */
+function VarianteFields({
+  form,
+  varianteIndex,
+  onRemove,
+}: {
+  form: ReturnType<typeof useForm<ProductoFormValues, unknown, ProductoInput>>;
+  varianteIndex: number;
+  onRemove: () => void;
+}) {
+  const {
+    fields: atributoFields,
+    append: appendAtributo,
+    remove: removeAtributo,
+  } = useFieldArray({
+    control: form.control,
+    name: `variantes.${varianteIndex}.atributos`,
+  });
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">
+          Variante #{varianteIndex + 1}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          className="size-7 text-destructive hover:text-destructive shrink-0"
+        >
+          <Trash2 className="size-3.5" />
+          <span className="sr-only">Quitar variante</span>
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <FormLabel className="text-xs">Atributos</FormLabel>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => appendAtributo({ clave: "", valor: "" })}
+          >
+            <Plus className="size-3 mr-1" />
+            Atributo
+          </Button>
+        </div>
+
+        {atributoFields.length === 0 && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Sin atributos. La variante quedará como DEFAULT.
+          </p>
+        )}
+
+        {atributoFields.map((atributoField, atributoIndex) => (
+          <div key={atributoField.id} className="flex items-start gap-2">
+            <FormField
+              control={form.control}
+              name={`variantes.${varianteIndex}.atributos.${atributoIndex}.clave`}
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      placeholder="Ej: color"
+                      {...field}
+                      className="h-8 text-xs"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`variantes.${varianteIndex}.atributos.${atributoIndex}.valor`}
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      placeholder="Ej: rojo"
+                      {...field}
+                      className="h-8 text-xs"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeAtributo(atributoIndex)}
+              className="size-7 text-muted-foreground hover:text-destructive shrink-0"
+            >
+              <X className="size-3.5" />
+              <span className="sr-only">Quitar atributo</span>
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <FormField
+        control={form.control}
+        name={`variantes.${varianteIndex}.stock`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">Stock</FormLabel>
+            <FormControl>
+              <NumericInput
+                value={field.value ?? null}
+                onChange={(v) => field.onChange(v ?? 0)}
+                decimals={0}
+                min={0}
+                allowEmpty
+                placeholder="0"
+                className="w-32 font-numeric"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
   );
 }

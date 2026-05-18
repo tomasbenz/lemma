@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ImportarProductosView } from "./_components/importar-productos-view";
 
 export const metadata = {
-  title: "Importar productos | Loom Point",
+  title: "Importar productos | Lemma",
 };
 
 export default function ImportarProductosPage() {

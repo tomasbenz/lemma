@@ -222,15 +222,14 @@ export async function emitirFacturaAfip(
       }
       tipoFactura = 'factura_a'
     } else if (tipoFacturaVenta === 'factura_b') {
-      // Iconic RI emitiendo B. No requiere validacion extra: B se puede
-      // emitir a CF/MONO/EX o sin cliente (CF anonimo). Si receptor es
-      // RI con CUIT, el flujo correcto seria A, pero aceptamos B (caso
-      // raro pero valido fiscalmente: RI puede emitir B a otro RI por
-      // simplificacion operativa).
+      // RI emitiendo B. No requiere validacion extra: B se puede emitir a
+      // CF/MONO/EX o sin cliente (CF anonimo). Si receptor es RI con CUIT,
+      // el flujo correcto seria A, pero aceptamos B (caso raro pero valido
+      // fiscalmente: RI puede emitir B a otro RI por simplificacion operativa).
       tipoFactura = 'factura_b'
     } else {
       // venta.tipo_factura === 'factura_c' — backcompat de venta historica.
-      // Iconic Fashion (RI) NO emite C. Si receptor es CF/EX o no existe → B.
+      // Un emisor RI NO emite C. Si receptor es CF/EX o no existe → B.
       // Si receptor es RI/MONO → bloquear (deberia ser A, no C).
       if (cliente && (cliente.cond_iva === 'RI' || cliente.cond_iva === 'MONO')) {
         return {
@@ -347,7 +346,7 @@ export async function emitirFacturaAfip(
       montoNetoGravado = netoGravado
       montoIva = iva
     } else {
-      // factura_c (no aplica para Iconic, pero queda por compatibilidad)
+      // factura_c (no aplica para emisores RI, pero queda por compatibilidad)
       alicuotas = []
       montoNetoGravado = venta.monto_facturado
       montoIva = 0

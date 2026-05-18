@@ -3,9 +3,9 @@
  * El mock (mock.ts) y el adaptador real (real.ts cuando exista en Fase 5)
  * deben implementar AdaptadorAfip de manera idéntica.
  *
- * IMPORTANTE: para Iconic Fashion (única empresa por ahora) las facturas son
- * siempre tipo A o B (RI emisor). C aparece reservado para futuro multi-empresa
- * con emisores Monotributo. NC/ND para tipos A y B se incorporan en Sprint 3.
+ * IMPORTANTE: para emisores RI las facturas son tipo A o B. C aparece
+ * reservado para emisores Monotributo. NC/ND para tipos A y B se incorporan
+ * en Sprint 3.
  */
 
 import type { ComprobanteAsociado as ComprobanteAsociadoWsfe } from './wsfe/types'
@@ -202,7 +202,8 @@ export type DatosFacturaInput = {
 
   /**
    * Alícuotas de IVA discriminadas.
-   * - factura_a / factura_b: array NO vacío. Para Iconic siempre [{ id: 5, ... }].
+   * - factura_a / factura_b: array NO vacío. Para emisores RI con productos al
+   *   21% es siempre [{ id: 5, ... }].
    * - factura_c: array vacío [].
    * - Invariante para A/B: sum(baseImp) + sum(importe) === montoTotal con tolerancia 0.05.
    */

@@ -6,10 +6,23 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { productoSchema, type ProductoInput } from '@/lib/validations/producto'
 import { borrarImagenProducto } from '@/lib/images/upload'
+import { sufijoSku, type Atributos } from '@/lib/format-atributos'
 
 export type ActualizarProductoResult =
   | { ok: true; productoId: string }
   | { ok: false; error: string; field?: string }
+
+function pairsAObjeto(
+  pares: Array<{ clave: string; valor: string }>,
+): Atributos {
+  const out: Atributos = {}
+  for (const p of pares) {
+    const k = p.clave.trim().toLowerCase()
+    const v = p.valor.trim()
+    if (k && v) out[k] = v
+  }
+  return out
+}
 
 /**
  * Server Action: actualiza un producto existente con sus variantes.
@@ -17,7 +30,7 @@ export type ActualizarProductoResult =
  * Estrategia de variantes:
  * - Las variantes existentes NO se eliminan (para preservar historial de ventas).
  * - Se marcan como `activa = false` las que ya no están en la lista.
- * - Se actualizan las que siguen (stock, color, talle).
+ * - Se actualizan las que siguen (stock, atributos).
  * - Se crean las nuevas.
  * - Al reactivar, se pueden volver a poner `activa = true` si matchean SKU.
  *
@@ -110,7 +123,6 @@ export async function actualizarProducto(
     }
 
     // 2. Manejo de variantes
-    // Traer las variantes actuales del producto
     const { data: variantesActuales } = await supabase
       .from('variantes')
       .select('*')
@@ -120,29 +132,21 @@ export async function actualizarProducto(
       (variantesActuales ?? []).map((v) => [v.sku_variante, v])
     )
 
-    // Construir las variantes finales (las del form)
-    let variantesFinales: Array<{
+    type VarianteFinal = {
       sku_variante: string
-      color: string | null
-      talle: string | null
+      atributos: Atributos
       stock: number
-    }> = []
+    }
+
+    let variantesFinales: VarianteFinal[] = []
 
     if (data.tiene_variantes && data.variantes.length > 0) {
       variantesFinales = data.variantes.map((v) => {
-        const colorTrim = v.color?.trim() || null
-        const talleTrim = v.talle?.trim() || null
-        const sufijos = [colorTrim, talleTrim]
-          .filter(Boolean)
-          .map((s) => s!.toUpperCase().replace(/\s+/g, '-'))
-        const skuVariante =
-          sufijos.length > 0
-            ? `${data.sku_base}-${sufijos.join('-')}`
-            : `${data.sku_base}-DEFAULT`
+        const atributos = pairsAObjeto(v.atributos ?? [])
+        const sufijo = sufijoSku(atributos)
         return {
-          sku_variante: skuVariante,
-          color: colorTrim,
-          talle: talleTrim,
+          sku_variante: `${data.sku_base}-${sufijo}`,
+          atributos,
           stock: v.stock,
         }
       })
@@ -151,8 +155,7 @@ export async function actualizarProducto(
       variantesFinales = [
         {
           sku_variante: `${data.sku_base}-DEFAULT`,
-          color: null,
-          talle: null,
+          atributos: {},
           stock: data.track_stock ? data.stock_inicial : 0,
         },
       ]
@@ -165,12 +168,10 @@ export async function actualizarProducto(
     for (const variante of variantesFinales) {
       const existente = variantesExistentesMap.get(variante.sku_variante)
       if (existente) {
-        // Update (y reactivar si estaba inactiva)
         const { error } = await supabase
           .from('variantes')
           .update({
-            color: variante.color,
-            talle: variante.talle,
+            atributos: variante.atributos,
             stock: variante.stock,
             activa: true,
           })
@@ -183,11 +184,9 @@ export async function actualizarProducto(
           }
         }
       } else {
-        // Insert nueva variante — empresa_id requerido por multitenant
         const { error } = await supabase.from('variantes').insert({
           producto_id: productoId,
-          color: variante.color,
-          talle: variante.talle,
+          atributos: variante.atributos,
           sku_variante: variante.sku_variante,
           stock: variante.stock,
           activa: true,
@@ -214,23 +213,6 @@ export async function actualizarProducto(
         .eq('id', v.id)
     }
 
-    // 3. Actualizar catálogos
-    if (data.tiene_variantes) {
-      for (const variante of data.variantes) {
-        if (variante.color?.trim()) {
-          await supabase.rpc('buscar_o_crear_color', {
-            p_nombre: variante.color.trim(),
-          })
-        }
-        if (variante.talle?.trim()) {
-          await supabase.rpc('buscar_o_crear_talle', {
-            p_nombre: variante.talle.trim(),
-          })
-        }
-      }
-    }
-
-    // 4. Revalidar
     revalidatePath('/admin/productos')
     revalidatePath(`/admin/productos/${productoId}`)
 

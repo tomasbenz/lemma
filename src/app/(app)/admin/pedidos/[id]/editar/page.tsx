@@ -54,8 +54,7 @@ export default async function EditarPedidoPage({
       producto_nombre,
       producto_sku,
       variante_sku,
-      variante_color,
-      variante_talle,
+      variante_atributos,
       cantidad,
       precio_unitario_neto,
       subtotal_neto

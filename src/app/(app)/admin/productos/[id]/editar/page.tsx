@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react'
 
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { obtenerProducto } from '@/lib/queries/productos'
-import { listarColores, listarTalles } from '@/lib/queries/catalogos'
 import { Button } from '@/components/ui/button'
 import { ProductoForm } from '../../nuevo/_components/producto-form'
 
@@ -16,6 +15,22 @@ export async function generateMetadata({ params }: { params: Params }) {
   return {
     title: producto ? `Editar: ${producto.nombre}` : 'Producto no encontrado',
   }
+}
+
+/**
+ * Convierte el jsonb `atributos` de una variante en el array
+ * [{clave, valor}] que espera el form. Filtra entradas con valores
+ * vacíos o nulos para que no se rendericen como filas inválidas.
+ */
+function atributosAPares(
+  atributos: unknown,
+): Array<{ clave: string; valor: string }> {
+  if (!atributos || typeof atributos !== 'object' || Array.isArray(atributos)) {
+    return []
+  }
+  return Object.entries(atributos as Record<string, unknown>)
+    .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+    .map(([clave, valor]) => ({ clave, valor: String(valor) }))
 }
 
 export default async function EditarProductoPage({
@@ -31,16 +46,20 @@ export default async function EditarProductoPage({
   const producto = await obtenerProducto(id)
   if (!producto) notFound()
 
-  const [colores, talles] = await Promise.all([
-    listarColores(),
-    listarTalles(),
-  ])
-
   // Preparar initialData para el form
   const variantesActivas = producto.variantes.filter((v) => v.activa)
-  const tieneVariantes = variantesActivas.some(
-    (v) => v.color !== null || v.talle !== null
-  )
+  // Una variante "real" es la que tiene atributos no vacíos. Si la única
+  // variante activa es DEFAULT (sin atributos), el producto se muestra sin
+  // variantes y solo se edita el stock_inicial.
+  const tieneVariantes = variantesActivas.some((v) => {
+    const a = v.atributos as unknown
+    return (
+      a !== null &&
+      typeof a === 'object' &&
+      !Array.isArray(a) &&
+      Object.keys(a as Record<string, unknown>).length > 0
+    )
+  })
 
   const stockInicial =
     !tieneVariantes && variantesActivas.length > 0
@@ -59,8 +78,7 @@ export default async function EditarProductoPage({
     stock_inicial: stockInicial,
     variantes: tieneVariantes
       ? variantesActivas.map((v) => ({
-          color: v.color ?? '',
-          talle: v.talle ?? '',
+          atributos: atributosAPares(v.atributos),
           stock: v.stock,
         }))
       : [],
@@ -90,11 +108,7 @@ export default async function EditarProductoPage({
           </p>
         </div>
 
-        <ProductoForm
-          colores={colores}
-          talles={talles}
-          initialData={initialData}
-        />
+        <ProductoForm initialData={initialData} />
       </div>
     </div>
   )

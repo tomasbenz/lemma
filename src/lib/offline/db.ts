@@ -1,6 +1,6 @@
 // src/lib/offline/db.ts
 //
-// Base de datos local (IndexedDB) de Loom Point para soporte offline.
+// Base de datos local (IndexedDB) de Lemma para soporte offline.
 
 import Dexie, { type Table } from 'dexie'
 import type { ProductoCaja } from '@/lib/queries/productos-caja'
@@ -44,14 +44,14 @@ export type PedidoEnCola = {
   }
 }
 
-class LoomPointDB extends Dexie {
+class LemmaDB extends Dexie {
   productos!: Table<ProductoCaja, string>
   clientes!: Table<ClienteCaja, string>
   meta!: Table<MetaEntry, string>
   colaPedidos!: Table<PedidoEnCola, string>
 
   constructor() {
-    super('loom-point-offline')
+    super('lemma-offline')
 
     // Versión 1: schema base.
     // Versión 2: agregar `nombre_cliente_custom` al payload de colaPedidos.
@@ -67,7 +67,7 @@ class LoomPointDB extends Dexie {
   }
 }
 
-export const db = new LoomPointDB()
+export const db = new LemmaDB()
 
 export const META_KEYS = {
   LAST_CATALOG_SYNC_AT: 'last_catalog_sync_at',
