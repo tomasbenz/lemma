@@ -1671,7 +1671,7 @@ export type Database = {
         Args: { p_motivo: string; p_nuevo_stock: number; p_variante_id: string }
         Returns: {
           activa: boolean
-          color: string | null
+          atributos: Json
           created_at: string
           empresa_id: string
           id: string
@@ -1679,7 +1679,6 @@ export type Database = {
           producto_id: string
           sku_variante: string | null
           stock: number
-          talle: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -1695,32 +1694,19 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
-      ventas_totales_filtrados:
-        | {
-            Args: {
-              p_cliente_id?: string
-              p_desde?: string
-              p_estado?: string
-              p_hasta?: string
-              p_numero?: number
-              p_tipo_factura?: string
-              p_usuario_id?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_busqueda_texto?: string
-              p_cliente_id?: string
-              p_desde?: string
-              p_estado?: string
-              p_hasta?: string
-              p_numero?: number
-              p_tipo_factura?: string
-              p_usuario_id?: string
-            }
-            Returns: Json
-          }
+      ventas_totales_filtrados: {
+        Args: {
+          p_busqueda_texto?: string
+          p_cliente_id?: string
+          p_desde?: string
+          p_estado?: string
+          p_hasta?: string
+          p_numero?: number
+          p_tipo_factura?: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       afip_resultado: "exito" | "error_negocio" | "error_red" | "error_config"
