@@ -28,7 +28,7 @@ export type ItemCarrito = {
 
 const STORAGE_KEY = 'lemma:carrito:v1'
 
-type DescuentoModo = 'porcentaje' | 'monto'
+export type DescuentoModo = 'porcentaje' | 'monto'
 
 type EstadoCarrito = {
   items: ItemCarrito[]

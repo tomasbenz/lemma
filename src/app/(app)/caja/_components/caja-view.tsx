@@ -41,9 +41,14 @@ import { ModalGuardarPedido } from './modal-guardar-pedido'
 type CajaViewProps = {
   user: CurrentUser
   recargoManualHabilitado: boolean
+  recargo105Habilitado: boolean
 }
 
-export function CajaView({ user, recargoManualHabilitado }: CajaViewProps) {
+export function CajaView({
+  user,
+  recargoManualHabilitado,
+  recargo105Habilitado,
+}: CajaViewProps) {
   const catalog = useCatalogData()
 
   // Loader SOLO en la primerísima entrada sin cache (raro, primera vez post-login).
@@ -97,6 +102,7 @@ export function CajaView({ user, recargoManualHabilitado }: CajaViewProps) {
       clientes={catalog.data.clientes}
       user={user}
       recargoManualHabilitado={recargoManualHabilitado}
+      recargo105Habilitado={recargo105Habilitado}
       isOfflineSource={
         catalog.source === 'local' && catalog.serverFetchSettled
       }
@@ -114,12 +120,14 @@ function CajaViewInner({
   clientes,
   user,
   recargoManualHabilitado,
+  recargo105Habilitado,
   isOfflineSource,
 }: {
   productos: ProductoCaja[]
   clientes: import('@/lib/queries/clientes-caja').ClienteCaja[]
   user: CurrentUser
   recargoManualHabilitado: boolean
+  recargo105Habilitado: boolean
   isOfflineSource: boolean
 }) {
   const router = useRouter()
@@ -494,7 +502,12 @@ function CajaViewInner({
           subtotal={carrito.subtotal}
           descuentoAplicado={carrito.descuentoAplicado}
           total={carrito.total}
+          descuentoValor={carrito.descuentoValor}
+          descuentoModo={carrito.descuentoModo}
+          onDescuentoValorChange={carrito.setDescuentoValor}
+          onDescuentoModoChange={carrito.setDescuentoModo}
           recargoManualHabilitado={recargoManualHabilitado}
+          recargo105Habilitado={recargo105Habilitado}
           onVentaCerrada={handleVentaCerrada}
         />
       )}

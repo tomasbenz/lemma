@@ -4,7 +4,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
-import { isRecargoManualHabilitado } from "@/lib/features";
+import {
+  isRecargoManualHabilitado,
+  isRecargo105Habilitado,
+} from "@/lib/features";
 import { emitirFacturaAfip } from "@/app/(app)/admin/ventas/_actions/emitir-factura-afip";
 import { derivarTipoFactura } from "@/lib/afip/derivar-tipo-factura";
 import type { Atributos } from "@/lib/format-atributos";
@@ -132,16 +135,25 @@ export async function cerrarVenta(
 
     const totalNeto = redondear(subtotal - descuento);
 
-    // Feature flag empresas.features.recargo_manual_habilitado: si la
-    // empresa NO tiene el feature activo, ignoramos cualquier intento del
-    // cliente de mandar recargo (UI lo oculta, pero defense in depth).
-    const recargoHabilitado = user.empresa_id
-      ? await isRecargoManualHabilitado(user.empresa_id)
-      : false;
-    const recargo = recargoHabilitado
+    // Feature flags por empresa (defense in depth — la UI ya oculta los
+    // toggles cuando los flags están apagados, pero el server descarta
+    // cualquier intento de bypass desde el cliente).
+    //
+    //   recargo_105_habilitado    → permite recargoFacturaCompleta (10,5%).
+    //   recargo_manual_habilitado → permite recargoPorcentajeManual (% libre).
+    //
+    // Cada flag controla SOLO su campo. Si está apagado, el campo se fuerza
+    // a su valor "sin recargo" (false / null) sin importar lo que vino.
+    const [recargo105Habilitado, recargoManualHabilitado] = user.empresa_id
+      ? await Promise.all([
+          isRecargo105Habilitado(user.empresa_id),
+          isRecargoManualHabilitado(user.empresa_id),
+        ])
+      : [false, false];
+    const recargo = recargo105Habilitado
       ? (input.recargoFacturaCompleta ?? false)
       : false;
-    const recargoManual = recargoHabilitado
+    const recargoManual = recargoManualHabilitado
       ? (input.recargoPorcentajeManual ?? null)
       : null;
 

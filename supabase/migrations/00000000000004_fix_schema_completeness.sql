@@ -55,7 +55,9 @@ ALTER TABLE public.clientes
 -- pre-existente tiene un shape distinto, OR REPLACE falla y Tomás debería
 -- DROP VIEW + CREATE manualmente.
 
-CREATE OR REPLACE VIEW public.ventas_con_resumen AS
+DROP VIEW IF EXISTS public.ventas_con_resumen;
+
+CREATE VIEW public.ventas_con_resumen AS
 SELECT
   v.id,
   v.numero,

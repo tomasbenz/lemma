@@ -36,6 +36,7 @@ import {
   type MedioPagoInput,
 } from "../_actions/cerrar-venta";
 import type { ItemCarrito } from "../_hooks/use-carrito";
+import type { DescuentoModo } from "../_hooks/use-carrito";
 import type { ClienteCaja } from "@/lib/queries/clientes-caja";
 import type { TipoFacturaUI as TipoFactura } from "@/lib/types/factura";
 type MedioPago = "efectivo" | "transferencia" | "deposito" | "tarjeta_credito";
@@ -58,14 +59,31 @@ type ModalCobroProps = {
   descuentoAplicado: number;
   total: number; // total neto (subtotal - descuento)
   /**
-   * Feature flag empresas.features.recargo_manual_habilitado. Si false:
-   *  - se ocultan checkbox 10,5%, formulario de recargo manual %, y presets
-   *    30/50/100 del monto a facturar.
-   *  - `montoFacturado` se sincroniza siempre al `totalACobrar` (que coincide
-   *    con `total` neto porque no hay recargos posibles).
-   * Para Lemma + Samu el default es false → flujo simple sin recargos.
+   * Descuento editable desde el modal. El modal lee/escribe directamente al
+   * estado del carrito vía estos cuatro props para que el descuento persista
+   * si la cajera cierra el modal sin confirmar (el descuento es propiedad
+   * de la venta pre-cierre, no del modal).
+   */
+  descuentoValor: number;
+  descuentoModo: DescuentoModo;
+  onDescuentoValorChange: (v: number) => void;
+  onDescuentoModoChange: (m: DescuentoModo) => void;
+  /**
+   * empresas.features.recargo_manual_habilitado. Controla:
+   *   - Sección "Recargo manual (opcional)" con botón "+ Aplicar recargo manual".
+   *   - Presets 30/50/100 de "Monto a facturar".
+   *   - Input numérico libre de "Monto a facturar".
+   * Cuando false, el input de monto a facturar queda disabled y fijo en el
+   * total a cobrar (no se soporta facturación parcial).
    */
   recargoManualHabilitado: boolean;
+  /**
+   * empresas.features.recargo_105_habilitado. Controla SOLO el checkbox
+   * "Cobrar 10,5% extra al cliente" y el bloque de resumen "Recargo 10,5%".
+   * Independiente del recargo manual. Default false para Samu (boletas
+   * simples sin split fiscal).
+   */
+  recargo105Habilitado: boolean;
   onVentaCerrada: (ventaId: string, numero: number) => void;
 };
 
@@ -84,9 +102,7 @@ const MEDIOS_INFO: Record<MedioPago, { label: string; icon: React.ReactNode }> =
   };
 
 // Porcentajes preset para "Monto a facturar" cuando se factura parcial.
-// Caso de uso: facturación parcial cuando el comerciante factura solo una
-// porción del total (feature opcional, desactivado por defecto en Lemma
-// vía empresas.features.recargo_manual_habilitado).
+// Disponibles solo cuando recargoManualHabilitado=true (Samu lo necesita).
 const PORCENTAJES_PRESET = [30, 50, 100] as const;
 
 function nuevoId() {
@@ -107,7 +123,12 @@ export function ModalCobro({
   subtotal,
   descuentoAplicado,
   total, // total neto
+  descuentoValor,
+  descuentoModo,
+  onDescuentoValorChange,
+  onDescuentoModoChange,
   recargoManualHabilitado,
+  recargo105Habilitado,
   onVentaCerrada,
 }: ModalCobroProps) {
   const [tipoFactura, setTipoFactura] = useState<TipoFactura>("sin_factura");
@@ -140,7 +161,7 @@ export function ModalCobro({
     return round2(total * (recargoManualPorcentaje / 100));
   }, [total, recargoManualPorcentaje]);
 
-  // Recargo desactiva si cambia tipo a sin_factura
+  // Recargo 10,5% desactiva si cambia tipo a sin_factura
   useEffect(() => {
     if (tipoFactura === "sin_factura" && recargoFacturaCompleta) {
       setRecargoFacturaCompleta(false);
@@ -171,10 +192,8 @@ export function ModalCobro({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Auto-sync del medio único al totalACobrar siempre que la cajera no haya
-  // editado manualmente. Reemplaza la lista hardcoded de candidatos (que
-  // solo cubría 0, total y total*1.105 y se rompía con recargo manual de
-  // porcentaje variable).
+  // Auto-sync del medio único al totalACobrar mientras la cajera no haya
+  // editado manualmente.
   useEffect(() => {
     if (usuarioEditoMedios) return;
     setMedios((prev) => {
@@ -183,17 +202,15 @@ export function ModalCobro({
     });
   }, [totalACobrar, usuarioEditoMedios]);
 
-  // Cualquier cambio en cualquiera de los 2 recargos re-sincroniza el monto
-  // facturado al nuevo total a cobrar. Crítico fiscal: previene que se cobre
-  // con recargo aplicado pero se facture solo el neto, dejando desfase entre
-  // ventas.total y ventas.monto_facturado (lo que se envía a AFIP).
+  // Cambios en los recargos re-sincronizan monto facturado al total a cobrar.
+  // Crítico fiscal: previene desfase entre ventas.total y ventas.monto_facturado.
   useEffect(() => {
     if (tipoFactura === "sin_factura") return;
     setMontoFacturado(totalACobrar);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recargoFacturaCompleta, recargoManualPorcentaje]);
 
-  // Cuando se activa factura, si el monto facturado está en 0, default a 100% del total cobrado
+  // Default monto facturado al activar factura
   useEffect(() => {
     if (tipoFactura !== "sin_factura" && (montoFacturado ?? 0) === 0) {
       setMontoFacturado(totalACobrar);
@@ -223,7 +240,6 @@ export function ModalCobro({
 
   const aplicarPorcentaje = useCallback(
     (porcentaje: number) => {
-      // Con cualquier recargo (10,5% o manual) solo se puede facturar el 100%
       if (
         (recargoFacturaCompleta || recargoManualPorcentaje !== null) &&
         porcentaje !== 100
@@ -267,14 +283,9 @@ export function ModalCobro({
         const actualizada = prev.map((m) =>
           m.id === id ? { ...m, ...patch } : m,
         );
-        // Si solo cambia tipo de medio o referencia (no monto), o si
-        // hay un solo medio, no rebalanceamos: dejar tal cual.
         if (patch.monto === undefined || prev.length < 2) {
           return actualizada;
         }
-        // Estrategia: editar un medio que NO es el último ajusta el ÚLTIMO.
-        // Editar el último ajusta el PRIMERO. Mantiene suma == totalACobrar
-        // sin que la cajera tenga que pensar.
         const ultimoIdx = actualizada.length - 1;
         const editadoIdx = actualizada.findIndex((m) => m.id === id);
         const idxRebalanceo = editadoIdx === ultimoIdx ? 0 : ultimoIdx;
@@ -282,9 +293,6 @@ export function ModalCobro({
           (acc, m, i) => acc + (i === idxRebalanceo ? 0 : (m.monto ?? 0)),
           0,
         );
-        // Clamp a 0: si la cajera carga un monto que excede el total,
-        // el medio rebalanceado va a $0 (NO a negativo). Aparece cartel
-        // "Sobra $X" para que ajuste.
         const restante = Math.max(0, totalACobrar - sumaOtros);
         return actualizada.map((m, i) =>
           i === idxRebalanceo ? { ...m, monto: round2(restante) } : m,
@@ -326,6 +334,13 @@ export function ModalCobro({
 
   const recargoMonto = round2(totalACobrar - total);
 
+  // Validación visual del descuento: el % > 100 o el monto > subtotal
+  // son inválidos. useCarrito hace clamp también, pero queremos feedback.
+  const descuentoInvalido = useMemo(() => {
+    if (descuentoModo === "porcentaje") return descuentoValor > 100;
+    return descuentoValor > subtotal;
+  }, [descuentoValor, descuentoModo, subtotal]);
+
   async function handleConfirmar() {
     if (!saldoOk) {
       toast.error(
@@ -336,8 +351,6 @@ export function ModalCobro({
       return;
     }
 
-    // Limpiar medios en $0 del state visible para que la cajera vea
-    // lo que efectivamente se va a mandar a la DB.
     const mediosConMonto = medios.filter(
       (m) => m.monto !== null && m.monto > 0,
     );
@@ -498,10 +511,82 @@ export function ModalCobro({
             </div>
           </div>
 
-          {/* RECARGO MANUAL — feature flag empresas.features.recargo_manual_habilitado */}
+          {/* DESCUENTO (escribe al carrito vía callbacks) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor="descuento-valor"
+                className="text-sm font-medium"
+              >
+                Descuento (opcional)
+              </Label>
+              <div
+                className="inline-flex rounded-md border overflow-hidden text-xs"
+                role="tablist"
+                aria-label="Modo de descuento"
+              >
+                {(["porcentaje", "monto"] as DescuentoModo[]).map((m) => {
+                  const activo = descuentoModo === m;
+                  const label = m === "porcentaje" ? "%" : "$";
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={activo}
+                      onClick={() => onDescuentoModoChange(m)}
+                      className={cn(
+                        "px-2.5 py-1 font-numeric tabular-nums transition-colors",
+                        activo
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <NumericInput
+              id="descuento-valor"
+              value={descuentoValor || null}
+              onChange={(v) => onDescuentoValorChange(v ?? 0)}
+              decimals={2}
+              min={0}
+              max={descuentoModo === "porcentaje" ? 100 : subtotal}
+              allowEmpty
+              prefix={descuentoModo === "monto" ? "$" : undefined}
+              placeholder={descuentoModo === "porcentaje" ? "0" : "0,00"}
+              className={cn(
+                descuentoInvalido &&
+                  "border-destructive focus-visible:ring-destructive/50",
+              )}
+            />
+
+            {descuentoInvalido && (
+              <p className="text-[10px] text-destructive">
+                {descuentoModo === "porcentaje"
+                  ? "El descuento no puede superar 100%"
+                  : `El descuento no puede superar el subtotal (${formatARS(subtotal)})`}
+              </p>
+            )}
+
+            {descuentoAplicado > 0 && !descuentoInvalido && (
+              <p className="text-[10px] text-muted-foreground">
+                Aplica {formatARS(descuentoAplicado)} sobre subtotal{" "}
+                {formatARS(subtotal)}. Total neto: {formatARS(total)}.
+              </p>
+            )}
+          </div>
+
+          {/* RECARGO MANUAL — feature flag recargo_manual_habilitado */}
           {recargoManualHabilitado && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Recargo manual (opcional)</Label>
+              <Label className="text-sm font-medium">
+                Recargo manual (opcional)
+              </Label>
               {!mostrarRecargoManual ? (
                 <Button
                   type="button"
@@ -514,7 +599,7 @@ export function ModalCobro({
                   }}
                   className="w-full justify-start text-muted-foreground"
                 >
-                  + Recargo (ej: 30% tarjeta)
+                  + Aplicar recargo manual (ej: 30% tarjeta)
                   {recargoFacturaCompleta && (
                     <span className="ml-auto text-[10px]">
                       (no disponible con recargo 10,5%)
@@ -560,8 +645,8 @@ export function ModalCobro({
 
             {tipoFactura !== "sin_factura" && (
               <div className="pt-2 space-y-3">
-                {/* RECARGO 10,5% — feature flag */}
-                {recargoManualHabilitado && (
+                {/* RECARGO 10,5% — feature flag recargo_105_habilitado */}
+                {recargo105Habilitado && (
                   <label className="flex items-start gap-2.5 rounded-md border p-2.5 cursor-pointer hover:border-foreground/40">
                     <input
                       type="checkbox"
@@ -586,8 +671,8 @@ export function ModalCobro({
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         El cliente paga {formatARS(total)} +{" "}
                         {formatARS(round2(total * 0.105))} ={" "}
-                        {formatARS(round2(total * 1.105))}. Se factura el 100% por
-                        ese mismo monto.
+                        {formatARS(round2(total * 1.105))}. Se factura el 100%
+                        por ese mismo monto.
                       </p>
                     </div>
                   </label>
@@ -602,7 +687,6 @@ export function ModalCobro({
                     >
                       Monto a facturar
                     </Label>
-                    {/* Presets 30/50/100 — feature flag (facturación parcial) */}
                     {recargoManualHabilitado && (
                       <div className="flex items-center gap-1">
                         {PORCENTAJES_PRESET.map((p) => {
@@ -775,7 +859,7 @@ export function ModalCobro({
           <Button
             type="button"
             onClick={handleConfirmar}
-            disabled={submitting || !saldoOk}
+            disabled={submitting || !saldoOk || descuentoInvalido}
             className="min-w-[140px]"
           >
             {submitting ? (
@@ -817,9 +901,6 @@ function LineaMedio({
     linea.medio === "tarjeta_credito";
 
   const montoActual = linea.monto ?? 0;
-  // No mostrar el botón "Completar con X" cuando saldoDisponible <= 0
-  // (excedente o ya cubierto). Solo cuando hay falta real Y este medio
-  // no tiene ya el valor correcto.
   const mostrarCompletar =
     saldoDisponible > 0.01 && Math.abs(montoActual - saldoDisponible) > 0.01;
 
@@ -834,24 +915,22 @@ function LineaMedio({
               "deposito",
               "tarjeta_credito",
             ] as MedioPago[]
-          ).map(
-            (medio) => (
-              <button
-                key={medio}
-                type="button"
-                onClick={() => onChange({ medio })}
-                className={cn(
-                  "rounded-md border px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5",
-                  linea.medio === medio
-                    ? "border-foreground bg-muted"
-                    : "border-border hover:border-foreground/40",
-                )}
-              >
-                {MEDIOS_INFO[medio].icon}
-                <span>{MEDIOS_INFO[medio].label}</span>
-              </button>
-            ),
-          )}
+          ).map((medio) => (
+            <button
+              key={medio}
+              type="button"
+              onClick={() => onChange({ medio })}
+              className={cn(
+                "rounded-md border px-2 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5",
+                linea.medio === medio
+                  ? "border-foreground bg-muted"
+                  : "border-border hover:border-foreground/40",
+              )}
+            >
+              {MEDIOS_INFO[medio].icon}
+              <span>{MEDIOS_INFO[medio].label}</span>
+            </button>
+          ))}
         </div>
 
         <NumericInput
