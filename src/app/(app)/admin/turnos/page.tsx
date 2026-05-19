@@ -2,10 +2,14 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
-import { listarTurnos, type FiltrosTurnos } from '@/lib/queries/turnos'
+import {
+  listarTurnos,
+  agruparTurnosPorDia,
+  type FiltrosTurnos,
+} from '@/lib/queries/turnos'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { TurnosTabla } from './_components/turnos-tabla'
+import { TurnosListadoAgrupado } from './_components/turnos-listado-agrupado'
 
 export const metadata = {
   title: 'Turnos de caja',
@@ -44,6 +48,7 @@ export default async function TurnosPage({
   }
 
   const { rows, total, porPagina } = await listarTurnos(filtros)
+  const grupos = await agruparTurnosPorDia(rows)
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
 
   function hrefFiltro(
@@ -104,7 +109,7 @@ export default async function TurnosPage({
         </div>
 
         <Card className="p-0 overflow-hidden">
-          <TurnosTabla rows={rows} />
+          <TurnosListadoAgrupado grupos={grupos} />
         </Card>
 
         {total > porPagina && (

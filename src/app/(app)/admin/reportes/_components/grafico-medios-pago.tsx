@@ -2,36 +2,11 @@
 
 import type { MedioPagoAgregado } from '@/lib/queries/reportes'
 import { formatARS, formatNumber } from '@/lib/format'
+import { labelMedioPago, colorMedioPago } from '@/lib/medios-pago'
 import { cn } from '@/lib/utils'
 
 type Props = {
   data: MedioPagoAgregado[]
-}
-
-const LABELS: Record<string, string> = {
-  efectivo: 'Efectivo',
-  transferencia: 'Transferencia',
-  deposito: 'Depósito',
-  mercadopago_qr: 'Mercado Pago QR',
-  mercadopago: 'Mercado Pago',
-  tarjeta_credito: 'Tarjeta crédito',
-  tarjeta_debito: 'Tarjeta débito',
-  cheque: 'Cheque',
-  otro: 'Otro',
-}
-
-// Paleta achromatic: solo tonos de foreground con opacidad variable.
-// El medio con más volumen va con el tono más fuerte (lectura directa).
-const COLORES: Record<string, string> = {
-  efectivo: 'bg-foreground',
-  transferencia: 'bg-foreground/75',
-  mercadopago_qr: 'bg-foreground/55',
-  mercadopago: 'bg-foreground/55',
-  tarjeta_credito: 'bg-foreground/40',
-  tarjeta_debito: 'bg-foreground/40',
-  deposito: 'bg-foreground/25',
-  cheque: 'bg-foreground/25',
-  otro: 'bg-foreground/15',
 }
 
 export function GraficoMediosPago({ data }: Props) {
@@ -44,8 +19,8 @@ export function GraficoMediosPago({ data }: Props) {
     <div className="space-y-3">
       {filas.map((m) => {
         const pct = total > 0 ? (m.monto / total) * 100 : 0
-        const label = LABELS[m.medio] ?? m.medio
-        const color = COLORES[m.medio] ?? 'bg-foreground/15'
+        const label = labelMedioPago(m.medio)
+        const color = colorMedioPago(m.medio)
         const ticketPromedio =
           m.cantidad_transacciones > 0 ? m.monto / m.cantidad_transacciones : 0
 

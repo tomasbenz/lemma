@@ -401,6 +401,131 @@ export async function obtenerTurno(
   return { turno, resumen: tipados }
 }
 
+export type TotalMedio = {
+  medio: string
+  monto: number
+}
+
+export type ResumenDiaTurnos = {
+  dia: string // YYYY-MM-DD
+  turnos: TurnoRow[]
+  total_cobrado: number
+  cantidad_turnos: number
+  declarado_total: number // suma de total_declarado, ignorando null
+  diferencia_total: number // suma de diferencia, ignorando null
+  por_medio: TotalMedio[] // ordenado por monto desc, sin medios con 0
+}
+
+/**
+ * Dado un array de TurnoRow ya cargado, traer los totales por medio de pago
+ * agrupados por turno (para poder sumar por día). Hace UNA query a
+ * medios_pago_venta filtrando por turno_id IN (...) y estado venta cerrada.
+ *
+ * Devuelve un Map<turno_id, Map<medio, monto>> que el caller usa para armar
+ * los grupos por día. Multi-tenant: medios_pago_venta tiene empresa_id propio,
+ * así que RLS aplica directo. Además, los turnoIds vienen de listarTurnos
+ * (que también pasa por RLS), así que solo turnos de la empresa del caller
+ * matchean.
+ */
+export async function obtenerTotalesPorMedioDeTurnos(
+  turnoIds: string[]
+): Promise<Map<string, Map<string, number>>> {
+  if (turnoIds.length === 0) return new Map()
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('medios_pago_venta')
+    .select(
+      `
+      medio,
+      monto,
+      venta:ventas!inner(turno_id, estado)
+    `
+    )
+    .in('venta.turno_id', turnoIds)
+    .eq('venta.estado', 'cerrada')
+
+  if (error || !data) {
+    if (error) console.error('[obtenerTotalesPorMedioDeTurnos]', error)
+    return new Map()
+  }
+
+  type VentaJoin = { turno_id: string | null; estado: string }
+
+  const result = new Map<string, Map<string, number>>()
+  for (const row of data) {
+    const venta = flat(row.venta as VentaJoin | VentaJoin[] | null)
+    const turnoId = venta?.turno_id ?? null
+    if (!turnoId) continue
+    const medio = String(row.medio)
+    const monto = Number(row.monto) || 0
+    if (!result.has(turnoId)) result.set(turnoId, new Map())
+    const mapaTurno = result.get(turnoId)!
+    mapaTurno.set(medio, (mapaTurno.get(medio) ?? 0) + monto)
+  }
+  return result
+}
+
+/**
+ * Agrupa turnos por día y agrega resumen de cada día (cantidades, totales,
+ * desglose por medio de pago). El caller pasa los turnos ya filtrados y
+ * paginados, y este helper hace la query lateral por medios.
+ */
+export async function agruparTurnosPorDia(
+  turnos: TurnoRow[]
+): Promise<ResumenDiaTurnos[]> {
+  if (turnos.length === 0) return []
+
+  const turnoIds = turnos.map((t) => t.id)
+  const mediosPorTurno = await obtenerTotalesPorMedioDeTurnos(turnoIds)
+
+  const grupos = new Map<string, TurnoRow[]>()
+  for (const t of turnos) {
+    const dia = t.abierto_at.slice(0, 10)
+    if (!grupos.has(dia)) grupos.set(dia, [])
+    grupos.get(dia)!.push(t)
+  }
+
+  const result: ResumenDiaTurnos[] = []
+  for (const [dia, turnosDelDia] of grupos) {
+    let declaradoTotal = 0
+    let diferenciaTotal = 0
+    const sumaPorMedio = new Map<string, number>()
+
+    for (const t of turnosDelDia) {
+      declaradoTotal += t.total_declarado ?? 0
+      diferenciaTotal += t.diferencia ?? 0
+
+      const medios = mediosPorTurno.get(t.id)
+      if (medios) {
+        for (const [medio, monto] of medios) {
+          sumaPorMedio.set(medio, (sumaPorMedio.get(medio) ?? 0) + monto)
+        }
+      }
+    }
+
+    const por_medio: TotalMedio[] = Array.from(sumaPorMedio.entries())
+      .filter(([, m]) => m > 0)
+      .map(([medio, monto]) => ({ medio, monto }))
+      .sort((a, b) => b.monto - a.monto)
+
+    const total_cobrado = por_medio.reduce((s, m) => s + m.monto, 0)
+
+    result.push({
+      dia,
+      turnos: turnosDelDia,
+      total_cobrado,
+      cantidad_turnos: turnosDelDia.length,
+      declarado_total: declaradoTotal,
+      diferencia_total: diferenciaTotal,
+      por_medio,
+    })
+  }
+
+  // Día más reciente primero
+  return result.sort((a, b) => (a.dia < b.dia ? 1 : -1))
+}
+
 export type VentaDeTurno = {
   id: string
   numero: number
