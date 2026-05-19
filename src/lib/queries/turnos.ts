@@ -407,13 +407,14 @@ export type TotalMedio = {
 }
 
 export type ResumenDiaTurnos = {
-  dia: string // YYYY-MM-DD
+  dia: string // YYYY-MM-DD (en TZ Argentina)
   turnos: TurnoRow[]
   total_cobrado: number
   cantidad_turnos: number
   declarado_total: number // suma de total_declarado, ignorando null
   diferencia_total: number // suma de diferencia, ignorando null
   por_medio: TotalMedio[] // ordenado por monto desc, sin medios con 0
+  tiene_turno_abierto: boolean
 }
 
 /**
@@ -481,7 +482,12 @@ export async function agruparTurnosPorDia(
 
   const grupos = new Map<string, TurnoRow[]>()
   for (const t of turnos) {
-    const dia = t.abierto_at.slice(0, 10)
+    // Agrupar por día en TZ Argentina (en-CA → YYYY-MM-DD).
+    // Un turno abierto a las 23:00 ART (02:00 UTC del día siguiente) cae
+    // correctamente en el día ART en el que se abrió.
+    const dia = new Date(t.abierto_at).toLocaleDateString('en-CA', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+    })
     if (!grupos.has(dia)) grupos.set(dia, [])
     grupos.get(dia)!.push(t)
   }
@@ -510,6 +516,7 @@ export async function agruparTurnosPorDia(
       .sort((a, b) => b.monto - a.monto)
 
     const total_cobrado = por_medio.reduce((s, m) => s + m.monto, 0)
+    const tiene_turno_abierto = turnosDelDia.some((t) => t.cerrado_at === null)
 
     result.push({
       dia,
@@ -519,6 +526,7 @@ export async function agruparTurnosPorDia(
       declarado_total: declaradoTotal,
       diferencia_total: diferenciaTotal,
       por_medio,
+      tiene_turno_abierto,
     })
   }
 
