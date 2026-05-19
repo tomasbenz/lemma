@@ -36,6 +36,16 @@ export type ReportePdfData = {
     monto: number
     cantidad_transacciones: number
   }>
+  /**
+   * Ventas anuladas en el período (trazabilidad). Si cantidad === 0 o si no
+   * se pasa, no se renderiza la card de anuladas en el PDF.
+   */
+  anuladas?: {
+    cantidad: number
+    monto_total: number
+  } | null
+  /** Si viene, se muestra como sub-bloque debajo del periodoLabel ("Turno: ..."). */
+  turnoLabel?: string | null
 }
 
 export type ModoPdf = 'dark' | 'light'
@@ -213,6 +223,24 @@ function crearEstilos(modo: ModoPdf) {
       textAlign: 'center',
       fontStyle: 'italic',
     },
+    anuladasBox: {
+      marginTop: 14,
+      padding: 10,
+      borderRadius: 2,
+      backgroundColor: c.fondoTarjeta,
+      borderLeft: `2pt solid ${c.bordeFino}`,
+    },
+    anuladasLabel: {
+      fontSize: 7,
+      color: c.textoTerciario,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginBottom: 3,
+    },
+    anuladasTexto: {
+      fontSize: 9,
+      color: c.textoSecundario,
+    },
     // Columnas: Top productos
     colRank: {
       width: '7%',
@@ -344,6 +372,9 @@ export function ReportePdf({ data, modo = 'dark' }: Props) {
           <View style={styles.lineaDivisoria} />
           <Text style={styles.titulo}>Reporte de ventas</Text>
           <Text style={styles.subtitulo}>{data.periodoLabel}</Text>
+          {data.turnoLabel && (
+            <Text style={styles.subtitulo}>Turno: {data.turnoLabel}</Text>
+          )}
           <Text style={styles.fechaGen}>
             Generado el {data.fechaGeneracion}
           </Text>
@@ -396,6 +427,18 @@ export function ReportePdf({ data, modo = 'dark' }: Props) {
               </View>
             </View>
           </View>
+
+          {data.anuladas && data.anuladas.cantidad > 0 && (
+            <View style={styles.anuladasBox} wrap={false}>
+              <Text style={styles.anuladasLabel}>Ventas anuladas</Text>
+              <Text style={styles.anuladasTexto}>
+                {formatNumber(data.anuladas.cantidad)}{' '}
+                {data.anuladas.cantidad === 1 ? 'venta' : 'ventas'}
+                {' · '}
+                {formatARS(data.anuladas.monto_total)} no cobrado
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* TOP PRODUCTOS */}

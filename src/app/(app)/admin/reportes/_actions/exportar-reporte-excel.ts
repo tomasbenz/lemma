@@ -12,19 +12,25 @@ import {
 } from '@/lib/queries/reportes'
 
 const PERIODOS_VALIDOS: PeriodoReporte[] = [
+  'hoy',
+  'ayer',
   '7d',
   '30d',
   '90d',
   'mes_actual',
   'anio_actual',
+  'personalizado',
 ]
 
 const PERIODOS_LABEL: Record<PeriodoReporte, string> = {
+  hoy: 'Hoy',
+  ayer: 'Ayer',
   '7d': 'Últimos 7 días',
   '30d': 'Últimos 30 días',
   '90d': 'Últimos 90 días',
   mes_actual: 'Mes actual',
   anio_actual: 'Año actual',
+  personalizado: 'Personalizado',
 }
 
 const LABELS_MEDIO: Record<string, string> = {
