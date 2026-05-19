@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
 
 export type VentaListado = {
   id: string
@@ -235,8 +236,14 @@ export async function listarVentas(options: ListarVentasOptions = {}) {
 
 /**
  * Obtiene el detalle completo de una venta con sus items y medios de pago.
+ *
+ * Defense in depth: además de RLS, filtra por empresa_id del usuario.
+ * Sin empresa_id devolvemos null (mismo shape que "venta no existe").
  */
 export async function obtenerVenta(id: string) {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return null
+
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -251,6 +258,7 @@ export async function obtenerVenta(id: string) {
     `
     )
     .eq('id', id)
+    .eq('empresa_id', user.empresa_id)
     .single()
 
   if (error) {

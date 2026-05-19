@@ -1,5 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { escaparParaOrFilter } from './_helpers'
 import type {
   Cliente,
   ClienteConStats,
@@ -45,10 +47,12 @@ export async function listarClientes(options: ListarClientesOptions = {}) {
   }
 
   if (q.trim()) {
-    const busq = q.trim()
-    query = query.or(
-      `razon_social.ilike.%${busq}%,cuit.ilike.%${busq}%,email.ilike.%${busq}%`
-    )
+    const busq = escaparParaOrFilter(q)
+    if (busq) {
+      query = query.or(
+        `razon_social.ilike.%${busq}%,cuit.ilike.%${busq}%,email.ilike.%${busq}%`
+      )
+    }
   }
 
   switch (orden) {
@@ -108,6 +112,11 @@ export async function listarClientes(options: ListarClientesOptions = {}) {
 }
 
 export async function obtenerCliente(id: string): Promise<Cliente | null> {
+  // Defense in depth: además de RLS, filtra por empresa_id del usuario.
+  // Sin empresa_id devolvemos null (mismo shape que "cliente no existe").
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return null
+
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -130,6 +139,7 @@ export async function obtenerCliente(id: string): Promise<Cliente | null> {
     `
     )
     .eq('id', id)
+    .eq('empresa_id', user.empresa_id)
     .single()
 
   if (error || !data) return null

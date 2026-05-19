@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
 import type { Database } from '@/types/database'
+import { escaparParaOrFilter } from './_helpers'
 
 export type ProductoConVariantes = Database['public']['Tables']['productos']['Row'] & {
   variantes: Database['public']['Tables']['variantes']['Row'][]
@@ -14,20 +16,6 @@ export type ListarProductosOptions = {
   orden?: 'nombre_asc' | 'nombre_desc' | 'fecha_desc' | 'stock_asc' | 'stock_desc'
   limit?: number
   offset?: number
-}
-
-/**
- * Escapa caracteres que romperían un string en un filtro .or() de Supabase.
- * Reemplaza caracteres peligrosos con su equivalente encoded o los elimina.
- */
-function escaparParaOrFilter(valor: string): string {
-  // Supabase usa comas como separador dentro de .or() y paréntesis como delimitadores.
-  // También escapamos asterisco y %, que son wildcards de ilike.
-  return valor
-    .replace(/[,()]/g, ' ') // eliminar separadores peligrosos
-    .replace(/\*/g, '') // eliminar wildcards
-    .replace(/%/g, '') // eliminar wildcards
-    .trim()
 }
 
 /**
@@ -151,14 +139,22 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
 
 /**
  * Obtiene un producto por ID con TODAS sus variantes (activas e inactivas).
+ *
+ * Defense in depth: además de RLS, filtra por empresa_id del usuario autenticado.
+ * Si el usuario no tiene empresa_id (sesión rota o sin tenant), devuelve null
+ * con el mismo shape que "producto no existe" para no filtrar información.
  */
 export async function obtenerProducto(id: string) {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return null
+
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('productos')
     .select(`*, variantes(*)`)
     .eq('id', id)
+    .eq('empresa_id', user.empresa_id)
     .single()
 
   if (error) {
