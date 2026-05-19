@@ -8,6 +8,7 @@ import {
   isRecargoManualHabilitado,
   isRecargo105Habilitado,
 } from "@/lib/features";
+import { esMontoFinito } from "@/lib/cobro/calculos";
 import { emitirFacturaAfip } from "@/app/(app)/admin/ventas/_actions/emitir-factura-afip";
 import { derivarTipoFactura } from "@/lib/afip/derivar-tipo-factura";
 import type { Atributos } from "@/lib/format-atributos";
@@ -101,7 +102,7 @@ export async function cerrarVenta(
           error: `Cantidad inválida para ${item.productoNombre}`,
         };
       }
-      if (item.precioUnitarioNeto < 0) {
+      if (!esMontoFinito(item.precioUnitarioNeto) || item.precioUnitarioNeto < 0) {
         return {
           ok: false,
           error: `Precio inválido para ${item.productoNombre}`,
@@ -110,7 +111,7 @@ export async function cerrarVenta(
     }
 
     for (const m of input.mediosPago) {
-      if (m.monto <= 0) {
+      if (!esMontoFinito(m.monto) || m.monto <= 0) {
         return {
           ok: false,
           error: "Todos los medios de pago deben tener monto mayor a cero",

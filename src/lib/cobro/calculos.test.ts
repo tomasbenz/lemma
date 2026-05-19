@@ -11,6 +11,7 @@ import {
   calcularTotalACobrar,
   calcularTotalNeto,
   detectarPorcentajeFacturado,
+  esMontoFinito,
   filtrarMediosConMonto,
   permitePorcentajeFacturado,
   PORCENTAJES_FACTURADO_PRESET,
@@ -473,6 +474,58 @@ test("round2 — redondea a 2 decimales", () => {
 test("PORCENTAJES_FACTURADO_PRESET — la constante coincide con UI", () => {
   // Si esto rompe, hay que actualizar también los botones del modal
   assert.deepEqual([...PORCENTAJES_FACTURADO_PRESET], [30, 50, 100]);
+});
+
+// ============================================================================
+// esMontoFinito — guarda contra NaN/Infinity en inputs del cliente
+// ============================================================================
+//
+// Antes de este helper, los server actions chequeaban `x < 0` o `x <= 0` para
+// rechazar montos basura. Eso filtra negativos pero NaN/Infinity escapan
+// porque cualquier comparación con NaN da false. Resultado: NaN llegaba al
+// RPC de venta y producía totales corruptos. El helper canónico es
+// `Number.isFinite()` pero envolvemos en `esMontoFinito` para que el callsite
+// quede legible y haya un único punto que testear.
+
+test("esMontoFinito — números finitos positivos", () => {
+  assert.equal(esMontoFinito(100), true);
+  assert.equal(esMontoFinito(0), true);
+  assert.equal(esMontoFinito(0.01), true);
+  assert.equal(esMontoFinito(-50), true);
+});
+
+test("esMontoFinito — NaN rechaza", () => {
+  assert.equal(esMontoFinito(Number.NaN), false);
+});
+
+test("esMontoFinito — Infinity y -Infinity rechazan", () => {
+  assert.equal(esMontoFinito(Number.POSITIVE_INFINITY), false);
+  assert.equal(esMontoFinito(Number.NEGATIVE_INFINITY), false);
+});
+
+test("esMontoFinito — string numérica rechaza (no convierte)", () => {
+  // Defensa contra payloads que vienen del cliente con números como string.
+  // Si pasa un string, queremos que el server tire el error de input, no que
+  // intente coercer y enmascare el bug del cliente.
+  assert.equal(esMontoFinito("100"), false);
+});
+
+test("esMontoFinito — null/undefined/objeto rechazan", () => {
+  assert.equal(esMontoFinito(null), false);
+  assert.equal(esMontoFinito(undefined), false);
+  assert.equal(esMontoFinito({}), false);
+  assert.equal(esMontoFinito([]), false);
+});
+
+test("esMontoFinito — invariante: NaN nunca pasa el chequeo (regression guard)", () => {
+  // El bug original era que `NaN < 0` devuelve false, así que
+  // `if (x < 0) return error` dejaba pasar NaN. Este test garantiza que
+  // el patrón `!esMontoFinito(x) || x < 0` SÍ rechaza NaN.
+  const x = Number.NaN;
+  const pasaCheckViejo = !(x < 0); // patrón viejo (buggy)
+  const pasaCheckNuevo = !(!esMontoFinito(x) || x < 0); // patrón nuevo
+  assert.equal(pasaCheckViejo, true, "el patrón viejo dejaba pasar NaN");
+  assert.equal(pasaCheckNuevo, false, "el patrón nuevo bloquea NaN");
 });
 
 // ============================================================================

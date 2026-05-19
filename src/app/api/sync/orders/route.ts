@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { esMontoFinito } from '@/lib/cobro/calculos'
 
 type ItemPayload = {
   varianteId: string
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    if (item.precioUnitarioNeto < 0) {
+    if (!esMontoFinito(item.precioUnitarioNeto) || item.precioUnitarioNeto < 0) {
       return NextResponse.json(
         { error: `Precio inválido para ${item.productoNombre}` },
         { status: 400 }

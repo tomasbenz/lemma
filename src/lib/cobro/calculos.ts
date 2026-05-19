@@ -19,6 +19,16 @@ export function round2(n: number): number {
 }
 
 /**
+ * True si `n` es un número finito (no NaN, no Infinity, no -Infinity).
+ * Usar en validación de inputs monetarios/cantidades que vienen del cliente
+ * antes de mandarlos a una RPC: comparaciones como `n < 0` o `n <= 0`
+ * devuelven false para NaN, así que sin este check los valores basura pasan.
+ */
+export function esMontoFinito(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
+/**
  * Total a cobrar al cliente. Prioridad: recargo 10,5% > recargo manual > sin recargo.
  * Espejo exacto del useMemo en modal-cobro.tsx (líneas 117-123).
  */

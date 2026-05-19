@@ -101,3 +101,64 @@ Mensajes genéricos a usar (consistencia entre endpoints):
 Razón: aunque RLS cubra el caso, defense in depth + error indistinguible 
 entre "no existe" y "es de otra empresa" previene information disclosure 
 y bugs por configuración mal hecha de RLS.
+
+## Validación de inputs numéricos del cliente
+
+`if (x < 0)` o `if (x <= 0)` NO bloquea NaN ni Infinity porque cualquier
+comparación con NaN devuelve false. Si un payload del cliente trae un
+`precioUnitarioNeto: NaN` o `monto: Infinity`, el chequeo lo deja pasar y
+el valor basura llega al RPC, produciendo totales corruptos.
+
+Patrón obligatorio para todo monto/cantidad/porcentaje que venga del
+cliente y vaya a la DB:
+
+```ts
+import { esMontoFinito } from '@/lib/cobro/calculos'
+
+if (!esMontoFinito(item.precioUnitarioNeto) || item.precioUnitarioNeto < 0) {
+  return { ok: false, error: 'Precio inválido' }
+}
+```
+
+`esMontoFinito` envuelve `Number.isFinite()` con un type guard. Para enteros
+(cantidades discretas), `Number.isInteger()` ya descarta NaN/Infinity porque
+ninguno es entero, así que ahí no hace falta el wrapper.
+
+## Sanitización de `.or()` y `.filter()` de Supabase
+
+`supabase.from('x').or('col.ilike.%foo%,otra.eq.bar')` toma una string
+**PostgREST**, no un fragmento SQL escapado. Caracteres como `,`, `*`,
+`(`, `)`, `%` reescriben la semántica del filtro. Si la string se construye
+con input del usuario sin sanitizar, el usuario puede romper o cambiar
+el query.
+
+Helper canónico: `escaparParaOrFilter()` en `src/lib/queries/productos.ts`.
+Aplicarlo SIEMPRE antes de interpolar input del usuario en `.or()`:
+
+```ts
+const q = escaparParaOrFilter(busqueda.trim())
+query.or(`nombre.ilike.%${q}%,sku.ilike.%${q}%`)
+```
+
+## Operaciones aritméticas con dinero
+
+Toda operación monetaria en TS debe redondear con `round2()` (de
+`src/lib/cobro/calculos.ts`) ANTES de:
+- Persistir el resultado a la DB
+- Comparar contra otro total con tolerancia `<= 0.02`
+- Mostrar en UI
+
+Cálculos en RPCs SQL no necesitan redondeo manual: Postgres usa `numeric`
+y los `round(x, 2)` explícitos.
+
+## Race conditions en mutaciones compartidas
+
+Para cualquier mutación de estado compartido (stock, saldo, counter):
+
+- ❌ `SELECT col; if (...) UPDATE SET col = nuevo` — leak de lost update
+- ✓ `UPDATE ... SET col = col - X WHERE ... AND col >= X` — atómico
+- ✓ Encapsular en RPC con `SELECT FOR UPDATE` + UPDATE en la misma tx
+
+El decremento de stock en `cerrar_venta` y `finalizar_pedido` ya usa el
+patrón seguro dentro de la RPC. Cualquier futuro consumer que toque stock
+desde TS debe pasar por una RPC, no replicar SELECT + UPDATE.
