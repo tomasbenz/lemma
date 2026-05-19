@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, LockKeyhole } from 'lucide-react'
+import { Info, Loader2, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -16,6 +16,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatARS } from '@/lib/format'
 import { selectAllOnFocus } from '@/lib/utils/select-all-on-focus'
 import {
@@ -149,8 +154,9 @@ export function ModalCerrarTurno({
             Cerrar turno de caja
           </DialogTitle>
           <DialogDescription>
-            Contá el efectivo en caja e ingresá el total. El sistema calcula
-            la diferencia contra lo teórico.
+            Contá los billetes y monedas físicas en la caja e ingresá el
+            total. La diferencia se calcula contra el efectivo teórico (base
+            inicial + cobros en efectivo).
           </DialogDescription>
         </DialogHeader>
 
@@ -168,12 +174,30 @@ export function ModalCerrarTurno({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  Ventas en efectivo
+                  Efectivo cobrado en ventas
                 </span>
                 <span>{formatARS(resumen.total_efectivo_ventas)}</span>
               </div>
               <div className="flex justify-between pt-1.5 border-t font-semibold">
-                <span>Teórico en caja</span>
+                <span className="flex items-center gap-1">
+                  Efectivo teórico
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Qué es el efectivo teórico"
+                      >
+                        <Info className="size-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Lo que debería haber en efectivo físico en la caja:
+                      base inicial + cobros en efectivo. No incluye
+                      transferencias ni tarjetas.
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
                 <span>{formatARS(resumen.total_teorico_efectivo)}</span>
               </div>
             </div>

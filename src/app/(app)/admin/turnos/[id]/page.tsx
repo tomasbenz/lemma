@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   AlertTriangle,
   Clock,
+  Info,
   LockKeyhole,
   User,
 } from 'lucide-react'
@@ -14,6 +15,11 @@ import { obtenerTurno, listarVentasDeTurno } from '@/lib/queries/turnos'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatARS } from '@/lib/format'
 import { ForzarCierreButton } from '../_components/forzar-cierre-button'
 
@@ -198,22 +204,59 @@ export default async function TurnoDetallePage({
             </div>
             <div className="space-y-0.5">
               <div className="text-muted-foreground text-xs">
-                Efectivo de ventas
+                Efectivo cobrado en ventas
               </div>
               <div className="font-semibold">
                 {formatARS(resumen.total_efectivo_ventas)}
               </div>
             </div>
             <div className="space-y-0.5">
-              <div className="text-muted-foreground text-xs">
-                Teórico en caja
+              <div className="text-muted-foreground text-xs flex items-center gap-1">
+                Efectivo teórico en caja
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Qué es el efectivo teórico"
+                    >
+                      <Info className="size-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Lo que debería haber en efectivo físico en la caja al
+                    cierre: base inicial + cobros en efectivo del turno. No
+                    incluye transferencias ni tarjetas porque esa plata no
+                    está en la caja.
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <div className="font-semibold">
                 {formatARS(resumen.total_teorico_efectivo)}
               </div>
             </div>
             <div className="space-y-0.5">
-              <div className="text-muted-foreground text-xs">Diferencia</div>
+              <div className="text-muted-foreground text-xs flex items-center gap-1">
+                Diferencia (declarado − teórico)
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Qué significa la diferencia"
+                    >
+                      <Info className="size-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Positiva: hay más efectivo del esperado.
+                    <br />
+                    Negativa: falta efectivo.
+                    <br />
+                    Cero: cuadra exacto.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <div className="font-semibold">
                 {resumen.diferencia === null ? (
                   '—'
