@@ -6,7 +6,15 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useDebouncedCallback } from "use-debounce";
-import { Plus, Trash2, Package, Check, AlertCircle, X } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Package,
+  Check,
+  AlertCircle,
+  X,
+  ScanBarcode,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +33,7 @@ import {
 } from "@/components/ui/form";
 import { NumericInput } from "@/components/app/numeric-input";
 import { ImagenProductoUpload } from "../../_components/imagen-producto-upload";
+import { ScannerModal } from "../../_components/scanner-modal";
 import {
   productoSchema,
   type ProductoInput,
@@ -42,6 +51,11 @@ type SkuStatus =
   | { estado: "verificando" }
   | { estado: "disponible" }
   | { estado: "no_disponible"; mensaje: string };
+
+// Paths del form a los que puede apuntar el scanner: el código del producto
+// simple, o el de una variante específica por índice. Tipear esto en vez de
+// usar `string` permite pasarle el valor a form.setValue sin `as any`.
+type ScanTarget = "codigo_barras" | `variantes.${number}.codigo_barras`;
 
 export type ProductoFormInitialData = ProductoInput & {
   id: string;
@@ -69,6 +83,8 @@ export function ProductoForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [skuStatus, setSkuStatus] = useState<SkuStatus>({ estado: "ocioso" });
   const [skuManual, setSkuManual] = useState(esEdicion);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
 
   const form = useForm<ProductoFormValues, unknown, ProductoInput>({
     resolver: zodResolver(productoSchema),
@@ -154,6 +170,16 @@ export function ProductoForm({
       append({ atributos: [], stock: 0 });
     }
   };
+
+  function abrirScanner(fieldName: ScanTarget) {
+    setScanTarget(fieldName);
+    setScannerOpen(true);
+  }
+
+  function onScan(codigo: string) {
+    if (!scanTarget) return;
+    form.setValue(scanTarget, codigo, { shouldValidate: true });
+  }
 
   function onInvalid(errors: typeof form.formState.errors) {
     console.warn("[ProductoForm] Validación falló:", errors);
@@ -455,20 +481,31 @@ export function ProductoForm({
                     <FormItem>
                       <FormLabel>Código de barras</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ""}
-                          inputMode="numeric"
-                          placeholder="Escaneá o tipeá el código"
-                          className="font-numeric"
-                          // El lector USB "tipea" los dígitos y manda Enter.
-                          // Bloqueamos el Enter para que no dispare el submit
-                          // del form: el código queda en el campo y la usuaria
-                          // confirma con el botón "Crear/Guardar".
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") e.preventDefault();
-                          }}
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            inputMode="numeric"
+                            placeholder="Escaneá o tipeá el código"
+                            className="font-numeric"
+                            // El lector USB "tipea" los dígitos y manda Enter.
+                            // Bloqueamos el Enter para que no dispare el submit
+                            // del form: el código queda en el campo y la usuaria
+                            // confirma con el botón "Crear/Guardar".
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.preventDefault();
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0"
+                            onClick={() => abrirScanner("codigo_barras")}
+                          >
+                            <ScanBarcode className="size-4 mr-1" />
+                            Escanear
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormDescription className="text-xs">
                         Opcional. Escaneá el código de barras impreso del
@@ -511,6 +548,7 @@ export function ProductoForm({
                       form={form}
                       varianteIndex={index}
                       onRemove={() => remove(index)}
+                      abrirScanner={abrirScanner}
                     />
                   ))}
                 </div>
@@ -549,6 +587,12 @@ export function ProductoForm({
           </Button>
         </div>
       </form>
+
+      <ScannerModal
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={onScan}
+      />
     </Form>
   );
 }
@@ -564,10 +608,12 @@ function VarianteFields({
   form,
   varianteIndex,
   onRemove,
+  abrirScanner,
 }: {
   form: ReturnType<typeof useForm<ProductoFormValues, unknown, ProductoInput>>;
   varianteIndex: number;
   onRemove: () => void;
+  abrirScanner: (fieldName: ScanTarget) => void;
 }) {
   const {
     fields: atributoFields,
@@ -710,18 +756,32 @@ function VarianteFields({
           <FormItem>
             <FormLabel className="text-xs">Código de barras</FormLabel>
             <FormControl>
-              <Input
-                {...field}
-                value={field.value ?? ""}
-                inputMode="numeric"
-                placeholder="Escaneá o tipeá el código"
-                className="font-numeric h-8 text-xs"
-                // El lector USB "tipea" el código y manda Enter al final.
-                // Bloqueamos el Enter para que no dispare el submit del form.
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  inputMode="numeric"
+                  placeholder="Escaneá o tipeá el código"
+                  className="font-numeric h-8 text-xs"
+                  // El lector USB "tipea" el código y manda Enter al final.
+                  // Bloqueamos el Enter para que no dispare el submit del form.
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.preventDefault();
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs shrink-0"
+                  onClick={() =>
+                    abrirScanner(`variantes.${varianteIndex}.codigo_barras`)
+                  }
+                >
+                  <ScanBarcode className="size-3 mr-1" />
+                  Escanear
+                </Button>
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>
