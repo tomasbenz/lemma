@@ -30,6 +30,10 @@ export type AtributoInput = z.infer<typeof atributoSchema>
  *  - stock: stock inicial entero >= 0.
  */
 export const varianteSchema = z.object({
+  // Identidad estable de la variante. Las existentes llegan al form con su id
+  // (vía initialData) y deben preservarlo en el submit; las nuevas que el
+  // usuario agrega no tienen id hasta el INSERT, así que es opcional.
+  id: z.string().uuid().optional(),
   atributos: z.array(atributoSchema).default([]),
   stock: z
     .number()

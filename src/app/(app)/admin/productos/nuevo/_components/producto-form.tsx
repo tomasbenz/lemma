@@ -557,6 +557,18 @@ function VarianteFields({
 
   return (
     <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+      {/*
+        Hidden input que arrastra el id de la variante existente desde el
+        initialData hasta el submit. Sin esto, react-hook-form no incluiría
+        el id en los datos del field array y la server action no podría
+        matchear por id (perdiendo stock e historial al cambiar atributos).
+        Las variantes nuevas que agrega el usuario no tienen id: el register
+        las deja en undefined y el schema lo acepta como opcional.
+      */}
+      <input
+        type="hidden"
+        {...form.register(`variantes.${varianteIndex}.id`)}
+      />
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">
           Variante #{varianteIndex + 1}

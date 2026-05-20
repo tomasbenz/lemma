@@ -124,16 +124,28 @@ export async function actualizarProducto(
     }
 
     // 2. Manejo de variantes
+    //
+    // Tracking por id (no por sku_variante):
+    // el sku_variante se deriva de los atributos (${sku_base}-${sufijo}), así
+    // que editar un atributo cambia el sku y un matching por sku trataría a
+    // la misma variante como "se fue, llegó una nueva", perdiendo id, stock
+    // e historial de ventas. Trackeamos por id estable.
+    //
+    // El form arrastra el id de cada variante existente vía un hidden input
+    // (camino CON variantes). Para la DEFAULT (camino SIN variantes) el form
+    // no carga el id; ahí caemos a matching por sku porque
+    // `${sku_base}-DEFAULT` es estable mientras el sku_base no cambie.
     const { data: variantesActuales } = await supabase
       .from('variantes')
       .select('*')
       .eq('producto_id', productoId)
 
-    const variantesExistentesMap = new Map(
-      (variantesActuales ?? []).map((v) => [v.sku_variante, v])
+    const existentesPorId = new Map(
+      (variantesActuales ?? []).map((v) => [v.id, v] as const)
     )
 
     type VarianteFinal = {
+      id?: string
       sku_variante: string
       atributos: Atributos
       stock: number
@@ -149,6 +161,7 @@ export async function actualizarProducto(
         const atributos = pairsAObjeto(v.atributos ?? [])
         const sufijo = sufijoSku(atributos)
         return {
+          id: v.id,
           sku_variante: `${data.sku_base}-${sufijo}`,
           atributos,
           stock: v.stock,
@@ -170,30 +183,93 @@ export async function actualizarProducto(
       ]
     }
 
-    // SKUs finales
-    const skusFinales = new Set(variantesFinales.map((v) => v.sku_variante))
+    // Parear cada variante final con una existente (si la hay).
+    // Prioridad: 1) match por id estable, 2) fallback por sku (DEFAULT y casos
+    // heredados sin id). `idsConsumidos` evita parear dos finales al mismo
+    // existente cuando ambos caminos podrían coincidir.
+    type Pareo = { final: VarianteFinal; existenteId: string | null }
+    const pareos: Pareo[] = []
+    const idsConsumidos = new Set<string>()
 
-    // Actualizar/crear cada variante final
-    for (const variante of variantesFinales) {
-      const existente = variantesExistentesMap.get(variante.sku_variante)
+    for (const final of variantesFinales) {
+      let existenteId: string | null = null
+      if (final.id && existentesPorId.has(final.id) && !idsConsumidos.has(final.id)) {
+        existenteId = final.id
+      } else {
+        const porSku = (variantesActuales ?? []).find(
+          (v) =>
+            v.sku_variante === final.sku_variante && !idsConsumidos.has(v.id)
+        )
+        if (porSku) existenteId = porSku.id
+      }
+      if (existenteId) idsConsumidos.add(existenteId)
+      pareos.push({ final, existenteId })
+    }
+
+    // Variantes existentes que quedan sin pareo → desactivar.
+    const idsADesactivar: string[] = []
+    for (const v of variantesActuales ?? []) {
+      if (!idsConsumidos.has(v.id)) idsADesactivar.push(v.id)
+    }
+
+    // FASE 1: liberar sku_variante de las filas que van a cambiar de sku o
+    // que se van a desactivar. El índice UNIQUE parcial
+    // variantes_sku_unq ON variantes(sku_variante) WHERE sku_variante IS NOT NULL
+    // ignora los NULL, así que poner NULL libera el valor anterior y previene
+    // colisiones en FASE 2 (ej. swap de atributos entre dos variantes, o
+    // reuso de un sku que estaba en una inactiva o en otra fila que todavía
+    // no se actualizó en el loop).
+    const idsAFASE1 = new Set<string>()
+    for (const { final, existenteId } of pareos) {
+      if (!existenteId) continue
+      const existente = existentesPorId.get(existenteId)
+      if (existente && existente.sku_variante !== final.sku_variante) {
+        idsAFASE1.add(existenteId)
+      }
+    }
+    for (const id of idsADesactivar) {
+      const existente = existentesPorId.get(id)
+      if (existente && existente.sku_variante !== null) {
+        idsAFASE1.add(id)
+      }
+    }
+
+    if (idsAFASE1.size > 0) {
+      const { error: errorFase1 } = await supabase
+        .from('variantes')
+        .update({ sku_variante: null })
+        .in('id', Array.from(idsAFASE1))
+      if (errorFase1) {
+        console.error('[actualizarProducto] FASE 1 (null sku) error:', errorFase1)
+        return {
+          ok: false,
+          error: 'Error preparando variantes: ' + errorFase1.message,
+        }
+      }
+    }
+
+    // FASE 2: aplicar valores finales. Las que cambian de sku ya no chocan
+    // porque su sku anterior está NULL.
+    for (const { final, existenteId } of pareos) {
       // Solo incluimos codigo_barras en el payload cuando el camino DEFAULT
       // explicitamente lo seteó. En el camino con variantes queda undefined
       // y no toca la columna existente.
       const codigoBarrasPatch =
-        variante.codigo_barras !== undefined
-          ? { codigo_barras: variante.codigo_barras }
+        final.codigo_barras !== undefined
+          ? { codigo_barras: final.codigo_barras }
           : {}
 
-      if (existente) {
+      if (existenteId) {
         const { error } = await supabase
           .from('variantes')
           .update({
-            atributos: variante.atributos,
-            stock: variante.stock,
+            atributos: final.atributos,
+            stock: final.stock,
+            sku_variante: final.sku_variante,
             activa: true,
             ...codigoBarrasPatch,
           })
-          .eq('id', existente.id)
+          .eq('id', existenteId)
         if (error) {
           console.error('[actualizarProducto] Error update variante:', error)
           const esCodigoDuplicado =
@@ -214,9 +290,9 @@ export async function actualizarProducto(
       } else {
         const { error } = await supabase.from('variantes').insert({
           producto_id: productoId,
-          atributos: variante.atributos,
-          sku_variante: variante.sku_variante,
-          stock: variante.stock,
+          atributos: final.atributos,
+          sku_variante: final.sku_variante,
+          stock: final.stock,
           activa: true,
           empresa_id: user.empresa_id,
           ...codigoBarrasPatch,
@@ -241,15 +317,19 @@ export async function actualizarProducto(
       }
     }
 
-    // Desactivar variantes que ya no están en la lista
-    const variantesAEliminar = (variantesActuales ?? []).filter(
-      (v) => v.sku_variante && !skusFinales.has(v.sku_variante)
-    )
-    for (const v of variantesAEliminar) {
-      await supabase
+    // Desactivar las que quedaron sin pareo. Su sku ya fue NULL'd en FASE 1.
+    if (idsADesactivar.length > 0) {
+      const { error: errorDesactivar } = await supabase
         .from('variantes')
         .update({ activa: false })
-        .eq('id', v.id)
+        .in('id', idsADesactivar)
+      if (errorDesactivar) {
+        console.error('[actualizarProducto] Error desactivando:', errorDesactivar)
+        return {
+          ok: false,
+          error: 'Error desactivando variantes: ' + errorDesactivar.message,
+        }
+      }
     }
 
     revalidatePath('/admin/productos')
