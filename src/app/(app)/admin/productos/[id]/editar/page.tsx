@@ -66,6 +66,14 @@ export default async function EditarProductoPage({
       ? variantesActivas[0].stock
       : 0
 
+  // Para productos sin variantes (variante DEFAULT), el código de barras
+  // vive en esa única variante. Lo subimos al nivel del form porque el
+  // schema lo expone como campo del producto.
+  const codigoBarrasInicial =
+    !tieneVariantes && variantesActivas.length > 0
+      ? variantesActivas[0].codigo_barras ?? ''
+      : ''
+
   const initialData = {
     id: producto.id,
     nombre: producto.nombre,
@@ -73,6 +81,7 @@ export default async function EditarProductoPage({
     precio_neto: producto.precio_neto,
     categoria: producto.categoria ?? '',
     descripcion_corta: producto.descripcion_corta ?? '',
+    codigo_barras: codigoBarrasInicial,
     track_stock: producto.track_stock,
     tiene_variantes: tieneVariantes,
     stock_inicial: stockInicial,

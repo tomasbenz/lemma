@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { productoSchema, type ProductoInput } from '@/lib/validations/producto'
 import { borrarImagenProducto } from '@/lib/images/upload'
 import { sufijoSku, type Atributos } from '@/lib/format-atributos'
+import { normalizarCodigoBarras } from '@/lib/codigo-barras/validar'
 
 export type ActualizarProductoResult =
   | { ok: true; productoId: string }
@@ -136,6 +137,9 @@ export async function actualizarProducto(
       sku_variante: string
       atributos: Atributos
       stock: number
+      // undefined → no tocar la columna codigo_barras (camino con variantes,
+      // que se entrega aparte). null/string → setear el valor en DEFAULT.
+      codigo_barras?: string | null
     }
 
     let variantesFinales: VarianteFinal[] = []
@@ -151,12 +155,17 @@ export async function actualizarProducto(
         }
       })
     } else {
-      // Sin variantes → una DEFAULT
+      // Sin variantes → una DEFAULT. Acá sí seteamos codigo_barras explícitamente
+      // (null si el campo vino vacío, normalizado si vino con valor).
+      const codigoBarras = data.codigo_barras
+        ? normalizarCodigoBarras(data.codigo_barras)
+        : null
       variantesFinales = [
         {
           sku_variante: `${data.sku_base}-DEFAULT`,
           atributos: {},
           stock: data.track_stock ? data.stock_inicial : 0,
+          codigo_barras: codigoBarras,
         },
       ]
     }
@@ -167,6 +176,14 @@ export async function actualizarProducto(
     // Actualizar/crear cada variante final
     for (const variante of variantesFinales) {
       const existente = variantesExistentesMap.get(variante.sku_variante)
+      // Solo incluimos codigo_barras en el payload cuando el camino DEFAULT
+      // explicitamente lo seteó. En el camino con variantes queda undefined
+      // y no toca la columna existente.
+      const codigoBarrasPatch =
+        variante.codigo_barras !== undefined
+          ? { codigo_barras: variante.codigo_barras }
+          : {}
+
       if (existente) {
         const { error } = await supabase
           .from('variantes')
@@ -174,10 +191,21 @@ export async function actualizarProducto(
             atributos: variante.atributos,
             stock: variante.stock,
             activa: true,
+            ...codigoBarrasPatch,
           })
           .eq('id', existente.id)
         if (error) {
           console.error('[actualizarProducto] Error update variante:', error)
+          const esCodigoDuplicado =
+            error.code === '23505' &&
+            (error.message?.includes('codigo_barras') ?? false)
+          if (esCodigoDuplicado) {
+            return {
+              ok: false,
+              field: 'codigo_barras',
+              error: 'Ese código de barras ya está asignado a otro producto.',
+            }
+          }
           return {
             ok: false,
             error: 'Error actualizando variante: ' + error.message,
@@ -191,9 +219,20 @@ export async function actualizarProducto(
           stock: variante.stock,
           activa: true,
           empresa_id: user.empresa_id,
+          ...codigoBarrasPatch,
         })
         if (error) {
           console.error('[actualizarProducto] Error insert variante:', error)
+          const esCodigoDuplicado =
+            error.code === '23505' &&
+            (error.message?.includes('codigo_barras') ?? false)
+          if (esCodigoDuplicado) {
+            return {
+              ok: false,
+              field: 'codigo_barras',
+              error: 'Ese código de barras ya está asignado a otro producto.',
+            }
+          }
           return {
             ok: false,
             error: 'Error creando variante: ' + error.message,

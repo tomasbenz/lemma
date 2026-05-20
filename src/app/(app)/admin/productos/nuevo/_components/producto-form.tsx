@@ -78,6 +78,7 @@ export function ProductoForm({
       precio_neto: 0,
       categoria: "",
       descripcion_corta: "",
+      codigo_barras: "",
       imagen_url: null,
       track_stock: true,
       tiene_variantes: false,
@@ -399,29 +400,62 @@ export function ProductoForm({
             />
 
             {!tieneVariantes && (
-              <FormField
-                control={form.control}
-                name="stock_inicial"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {esEdicion ? "Stock" : "Stock inicial"}
-                    </FormLabel>
-                    <FormControl>
-                      <NumericInput
-                        value={field.value ?? null}
-                        onChange={(v) => field.onChange(v ?? 0)}
-                        decimals={0}
-                        min={0}
-                        allowEmpty
-                        placeholder="0"
-                        className="w-32 font-numeric"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <>
+                <FormField
+                  control={form.control}
+                  name="stock_inicial"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {esEdicion ? "Stock" : "Stock inicial"}
+                      </FormLabel>
+                      <FormControl>
+                        <NumericInput
+                          value={field.value ?? null}
+                          onChange={(v) => field.onChange(v ?? 0)}
+                          decimals={0}
+                          min={0}
+                          allowEmpty
+                          placeholder="0"
+                          className="w-32 font-numeric"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="codigo_barras"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código de barras</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          inputMode="numeric"
+                          placeholder="Escaneá o tipeá el código"
+                          className="font-numeric"
+                          // El lector USB "tipea" los dígitos y manda Enter.
+                          // Bloqueamos el Enter para que no dispare el submit
+                          // del form: el código queda en el campo y la usuaria
+                          // confirma con el botón "Crear/Guardar".
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.preventDefault();
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Opcional. Escaneá el código de barras impreso del
+                        producto con el lector, o tipealo a mano.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
 
             {tieneVariantes && (

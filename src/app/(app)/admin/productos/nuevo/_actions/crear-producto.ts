@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { productoSchema, type ProductoInput } from '@/lib/validations/producto'
 import { borrarImagenProducto } from '@/lib/images/upload'
 import { sufijoSku, type Atributos } from '@/lib/format-atributos'
+import { normalizarCodigoBarras } from '@/lib/codigo-barras/validar'
 
 export type CrearProductoResult =
   | { ok: true; productoId: string; slug: string }
@@ -128,6 +129,7 @@ export async function crearProducto(
       stock: number
       activa: boolean
       empresa_id: string
+      codigo_barras?: string | null
     }
 
     let variantesParaInsertar: VarianteInsert[] = []
@@ -147,6 +149,9 @@ export async function crearProducto(
       })
     } else {
       // No tiene variantes → crear una DEFAULT
+      const codigoBarras = data.codigo_barras
+        ? normalizarCodigoBarras(data.codigo_barras)
+        : null
       variantesParaInsertar = [
         {
           producto_id: producto.id,
@@ -155,6 +160,7 @@ export async function crearProducto(
           stock: data.track_stock ? data.stock_inicial : 0,
           activa: true,
           empresa_id: user.empresa_id,
+          codigo_barras: codigoBarras,
         },
       ]
     }
@@ -168,6 +174,18 @@ export async function crearProducto(
       await supabase.from('productos').delete().eq('id', producto.id)
       if (data.imagen_url) {
         void borrarImagenProducto(data.imagen_url)
+      }
+      // Unique violation sobre el índice parcial variantes_empresa_codigo_barras_key
+      // → mensaje claro para el operador en vez del mensaje crudo de Postgres.
+      const esCodigoDuplicado =
+        errorVariantes.code === '23505' &&
+        (errorVariantes.message?.includes('codigo_barras') ?? false)
+      if (esCodigoDuplicado) {
+        return {
+          ok: false,
+          field: 'codigo_barras',
+          error: 'Ese código de barras ya está asignado a otro producto.',
+        }
       }
       return {
         ok: false,

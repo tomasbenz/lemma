@@ -77,6 +77,13 @@ export const productoSchema = z
       .optional()
       .or(z.literal('')),
 
+    codigo_barras: z
+      .string()
+      .trim()
+      .regex(/^\d{8,18}$/, 'El código de barras debe tener entre 8 y 18 dígitos')
+      .optional()
+      .or(z.literal('')),
+
     imagen_url: z.string().url().nullable().optional(),
 
     track_stock: z.boolean(),
