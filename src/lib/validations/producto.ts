@@ -31,10 +31,28 @@ export type AtributoInput = z.infer<typeof atributoSchema>
  */
 export const varianteSchema = z.object({
   // Identidad estable de la variante. Las existentes llegan al form con su id
-  // (vía initialData) y deben preservarlo en el submit; las nuevas que el
-  // usuario agrega no tienen id hasta el INSERT, así que es opcional.
-  id: z.string().uuid().optional(),
-  atributos: z.array(atributoSchema).default([]),
+  // de DB (vía initialData) y deben preservarlo en el submit; las nuevas que
+  // el usuario agrega no tienen id hasta el INSERT, así que es opcional.
+  // Se llama `varianteId` (no `id`) porque useFieldArray de react-hook-form
+  // reserva la propiedad `id` para su key tracking interno: si usáramos `id`
+  // acá, el hidden input que lo registra no llegaría al DOM y el id real de
+  // la DB no viajaría al submit, rompiendo el pareo en actualizarProducto.
+  varianteId: z.string().uuid().optional(),
+  // Descarta atributos 100% vacíos (clave y valor en blanco) antes de validar:
+  // caso típico de "agregué un + Atributo de más". Los a medio llenar siguen
+  // rompiendo la validación con el mensaje correcto del atributoSchema.
+  atributos: z
+    .array(
+      z.object({
+        clave: z.string(),
+        valor: z.string(),
+      })
+    )
+    .default([])
+    .transform((arr) =>
+      arr.filter((a) => a.clave.trim() !== '' || a.valor.trim() !== '')
+    )
+    .pipe(z.array(atributoSchema)),
   stock: z
     .number()
     .int('Debe ser un número entero')

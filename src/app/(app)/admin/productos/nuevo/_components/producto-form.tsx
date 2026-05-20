@@ -155,6 +155,29 @@ export function ProductoForm({
     }
   };
 
+  function onInvalid(errors: typeof form.formState.errors) {
+    console.warn("[ProductoForm] Validación falló:", errors);
+    const variantesError = errors.variantes;
+    const variantesMsg =
+      variantesError && !Array.isArray(variantesError)
+        ? variantesError.message
+        : Array.isArray(variantesError)
+          ? "Revisá los atributos de las variantes: cada uno necesita nombre y valor."
+          : null;
+    const primerError =
+      errors.nombre?.message ||
+      errors.sku_base?.message ||
+      errors.precio_neto?.message ||
+      errors.codigo_barras?.message ||
+      variantesMsg ||
+      "Revisá los campos marcados en el formulario.";
+    toast.error(
+      typeof primerError === "string"
+        ? primerError
+        : "Revisá los campos del formulario.",
+    );
+  }
+
   async function onSubmit(data: ProductoInput) {
     if (skuStatus.estado === "no_disponible") {
       toast.error("El SKU ya está en uso. Elegí otro.");
@@ -201,7 +224,7 @@ export function ProductoForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
         {/* ============ DATOS BÁSICOS ============ */}
         <Card>
           <CardHeader>
@@ -564,10 +587,14 @@ function VarianteFields({
         matchear por id (perdiendo stock e historial al cambiar atributos).
         Las variantes nuevas que agrega el usuario no tienen id: el register
         las deja en undefined y el schema lo acepta como opcional.
+
+        El campo se llama `varianteId` (no `id`) porque useFieldArray reserva
+        la propiedad `id` para su key tracking interno y, si se la pisamos, el
+        register no monta el input en el DOM y el id nunca llega al submit.
       */}
       <input
         type="hidden"
-        {...form.register(`variantes.${varianteIndex}.id`)}
+        {...form.register(`variantes.${varianteIndex}.varianteId`)}
       />
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">

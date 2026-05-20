@@ -87,7 +87,7 @@ export default async function EditarProductoPage({
     stock_inicial: stockInicial,
     variantes: tieneVariantes
       ? variantesActivas.map((v) => ({
-          id: v.id,
+          varianteId: v.id,
           atributos: atributosAPares(v.atributos),
           stock: v.stock,
         }))

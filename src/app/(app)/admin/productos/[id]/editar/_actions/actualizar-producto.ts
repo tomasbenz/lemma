@@ -145,7 +145,12 @@ export async function actualizarProducto(
     )
 
     type VarianteFinal = {
-      id?: string
+      // id de la variante en la DB cuando viene del form (existente). Se llama
+      // `varianteId` (no `id`) porque arrastra el nombre que usa el schema/form
+      // para no chocar con el `id` interno de useFieldArray. No confundir con
+      // el `id` real de la fila en la tabla `variantes` (ese sigue siendo `id`
+      // en `variantesActuales` y en el Map `existentesPorId`).
+      varianteId?: string
       sku_variante: string
       atributos: Atributos
       stock: number
@@ -161,7 +166,7 @@ export async function actualizarProducto(
         const atributos = pairsAObjeto(v.atributos ?? [])
         const sufijo = sufijoSku(atributos)
         return {
-          id: v.id,
+          varianteId: v.varianteId,
           sku_variante: `${data.sku_base}-${sufijo}`,
           atributos,
           stock: v.stock,
@@ -193,8 +198,12 @@ export async function actualizarProducto(
 
     for (const final of variantesFinales) {
       let existenteId: string | null = null
-      if (final.id && existentesPorId.has(final.id) && !idsConsumidos.has(final.id)) {
-        existenteId = final.id
+      if (
+        final.varianteId &&
+        existentesPorId.has(final.varianteId) &&
+        !idsConsumidos.has(final.varianteId)
+      ) {
+        existenteId = final.varianteId
       } else {
         const porSku = (variantesActuales ?? []).find(
           (v) =>
