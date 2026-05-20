@@ -171,6 +171,21 @@ export function ProductoForm({
     }
   };
 
+  function agregarVariante() {
+    append({ atributos: [], stock: 0 });
+    // Doble rAF para garantizar que la variante recién agregada ya esté
+    // montada en el DOM antes de scrollear (un solo rAF a veces corre antes
+    // del commit de React). Sin esto, querySelector encuentra el array
+    // viejo y el scroll cae en la variante anterior.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const items = document.querySelectorAll("[data-variante-item]");
+        const ultimo = items[items.length - 1];
+        ultimo?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  }
+
   function abrirScanner(fieldName: ScanTarget) {
     setScanTarget(fieldName);
     setScannerOpen(true);
@@ -528,7 +543,7 @@ export function ProductoForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ atributos: [], stock: 0 })}
+                    onClick={agregarVariante}
                   >
                     <Plus className="size-4 mr-1" />
                     Agregar variante
@@ -625,7 +640,10 @@ function VarianteFields({
   });
 
   return (
-    <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+    <div
+      data-variante-item
+      className="rounded-md border bg-muted/20 p-3 space-y-3"
+    >
       {/*
         Hidden input que arrastra el id de la variante existente desde el
         initialData hasta el submit. Sin esto, react-hook-form no incluiría
