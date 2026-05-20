@@ -145,6 +145,9 @@ export async function crearProducto(
           stock: v.stock,
           activa: true,
           empresa_id: user.empresa_id!,
+          codigo_barras: v.codigo_barras
+            ? normalizarCodigoBarras(v.codigo_barras)
+            : null,
         }
       })
     } else {

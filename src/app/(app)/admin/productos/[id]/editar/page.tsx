@@ -90,6 +90,7 @@ export default async function EditarProductoPage({
           varianteId: v.id,
           atributos: atributosAPares(v.atributos),
           stock: v.stock,
+          codigo_barras: v.codigo_barras ?? '',
         }))
       : [],
   }

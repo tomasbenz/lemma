@@ -58,6 +58,12 @@ export const varianteSchema = z.object({
     .int('Debe ser un número entero')
     .min(0, 'No puede ser negativo')
     .max(999999, 'Máximo 999.999'),
+  codigo_barras: z
+    .string()
+    .trim()
+    .regex(/^\d{8,18}$/, 'El código de barras debe tener entre 8 y 18 dígitos')
+    .optional()
+    .or(z.literal('')),
 })
 
 export type VarianteInput = z.infer<typeof varianteSchema>

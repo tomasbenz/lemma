@@ -170,6 +170,13 @@ export async function actualizarProducto(
           sku_variante: `${data.sku_base}-${sufijo}`,
           atributos,
           stock: v.stock,
+          // El form siempre provee este campo (string vacío → null). Al estar
+          // definido (string o null, nunca undefined), el codigoBarrasPatch de
+          // más abajo lo incluye en el UPDATE/INSERT y persiste el cambio,
+          // incluyendo el caso "borrar el código de barras" (null).
+          codigo_barras: v.codigo_barras
+            ? normalizarCodigoBarras(v.codigo_barras)
+            : null,
         }
       })
     } else {

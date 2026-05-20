@@ -702,6 +702,31 @@ function VarianteFields({
           </FormItem>
         )}
       />
+
+      <FormField
+        control={form.control}
+        name={`variantes.${varianteIndex}.codigo_barras`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">Código de barras</FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                value={field.value ?? ""}
+                inputMode="numeric"
+                placeholder="Escaneá o tipeá el código"
+                className="font-numeric h-8 text-xs"
+                // El lector USB "tipea" el código y manda Enter al final.
+                // Bloqueamos el Enter para que no dispare el submit del form.
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
   );
 }
