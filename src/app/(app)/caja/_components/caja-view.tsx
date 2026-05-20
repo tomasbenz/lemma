@@ -32,8 +32,13 @@ import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
 import type { CurrentUser } from '@/lib/auth/get-current-user'
 import type { TurnoActivo } from '@/lib/queries/turnos'
+import {
+  pareceCodigoBarras,
+  normalizarCodigoBarras,
+} from '@/lib/codigo-barras/validar'
 import { useCarrito } from '../_hooks/use-carrito'
 import { useCatalogData } from '../_hooks/use-catalog-data'
+import { useScannerBeep } from '../_hooks/use-scanner-beep'
 import { CarritoPanel } from './carrito-panel'
 import { SelectorVariantes } from './selector-variantes'
 import { ModalCobro } from './modal-cobro'
@@ -149,6 +154,7 @@ function CajaViewInner({
   const [carritoSheetOpen, setCarritoSheetOpen] = useState(false)
   const carrito = useCarrito()
   const busquedaInputRef = useRef<HTMLInputElement>(null)
+  const { beepExito, beepError } = useScannerBeep()
 
   const puedeCobrarDirecto = user.rol === 'admin' || user.rol === 'superadmin'
 
@@ -246,6 +252,37 @@ function CajaViewInner({
         trackStock: producto.track_stock,
       },
       cantidad
+    )
+  }
+
+  function handleScan(codigo: string) {
+    const normalizado = normalizarCodigoBarras(codigo)
+
+    let match: { producto: ProductoCaja; variante: VarianteCaja } | null = null
+    for (const p of productos) {
+      const v = p.variantes.find(
+        (v) =>
+          v.codigo_barras !== null &&
+          normalizarCodigoBarras(v.codigo_barras) === normalizado
+      )
+      if (v) {
+        match = { producto: p, variante: v }
+        break
+      }
+    }
+
+    if (!match) {
+      beepError()
+      toast.error(`Código no encontrado: ${codigo}`)
+      return
+    }
+
+    agregarUnaVariante(match.producto, match.variante, 1)
+    beepExito()
+    const label = formatAtributos(match.variante.atributos)
+    toast.success(
+      label ? `${match.producto.nombre} — ${label}` : match.producto.nombre,
+      { duration: 1500 }
     )
   }
 
@@ -352,6 +389,16 @@ function CajaViewInner({
                 placeholder="Buscar producto por nombre, SKU o categoría..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const valor = busqueda.trim()
+                    if (pareceCodigoBarras(valor)) {
+                      e.preventDefault()
+                      setBusqueda('')
+                      handleScan(valor)
+                    }
+                  }
+                }}
                 className="pl-9 pr-16 h-11 text-base"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium font-numeric text-muted-foreground hidden md:inline-flex">

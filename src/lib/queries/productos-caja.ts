@@ -15,6 +15,7 @@ export type VarianteCaja = {
   atributos: Atributos
   sku_variante: string
   stock: number
+  codigo_barras: string | null
 }
 
 export type ProductoCaja = Pick<
@@ -46,7 +47,7 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
       categoria,
       imagen_url,
       track_stock,
-      variantes(id, atributos, sku_variante, stock, activa)
+      variantes(id, atributos, sku_variante, stock, activa, codigo_barras)
     `
     )
     .eq('activo', true)
@@ -72,6 +73,7 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
             : {},
         sku_variante: v.sku_variante as string,
         stock: v.stock ?? 0,
+        codigo_barras: v.codigo_barras ?? null,
       }))
 
     const stock_total = variantesActivas.reduce((sum, v) => sum + v.stock, 0)

@@ -652,6 +652,13 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "facturas_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: true
+            referencedRelation: "ventas_con_resumen"
+            referencedColumns: ["id"]
+          },
         ]
       }
       facturas_afip: {
@@ -728,6 +735,13 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "facturas_afip_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas_con_resumen"
+            referencedColumns: ["id"]
+          },
         ]
       }
       items_venta: {
@@ -795,6 +809,13 @@ export type Database = {
             referencedRelation: "ventas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "items_venta_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas_con_resumen"
+            referencedColumns: ["id"]
+          },
         ]
       }
       medios_pago_venta: {
@@ -838,6 +859,13 @@ export type Database = {
             columns: ["venta_id"]
             isOneToOne: false
             referencedRelation: "ventas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medios_pago_venta_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas_con_resumen"
             referencedColumns: ["id"]
           },
         ]
@@ -954,6 +982,13 @@ export type Database = {
             columns: ["venta_id"]
             isOneToOne: false
             referencedRelation: "ventas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas_con_resumen"
             referencedColumns: ["id"]
           },
         ]
@@ -1166,11 +1201,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "turnos_caja_usuario_apertura_id_fkey"
+            columns: ["usuario_apertura_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "turnos_caja_usuario_cierre_id_fkey"
             columns: ["usuario_cierre_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnos_caja_usuario_cierre_id_fkey"
+            columns: ["usuario_cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -1228,6 +1277,7 @@ export type Database = {
         Row: {
           activa: boolean
           atributos: Json
+          codigo_barras: string | null
           created_at: string
           empresa_id: string
           id: string
@@ -1240,6 +1290,7 @@ export type Database = {
         Insert: {
           activa?: boolean
           atributos?: Json
+          codigo_barras?: string | null
           created_at?: string
           empresa_id: string
           id?: string
@@ -1252,6 +1303,7 @@ export type Database = {
         Update: {
           activa?: boolean
           atributos?: Json
+          codigo_barras?: string | null
           created_at?: string
           empresa_id?: string
           id?: string
@@ -1571,6 +1623,62 @@ export type Database = {
           usuario_id: string | null
           vista_at: string | null
         }
+        Insert: {
+          canal?: Database["public"]["Enums"]["canal_venta"] | null
+          cliente_id?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          descuento_total?: number | null
+          empresa_id?: string | null
+          estado?: Database["public"]["Enums"]["venta_estado"] | null
+          estado_facturacion_afip?:
+            | Database["public"]["Enums"]["estado_facturacion_afip"]
+            | null
+          id?: string | null
+          items_cantidad_total?: never
+          items_count?: never
+          monto_facturado?: number | null
+          nombre_cliente_custom?: string | null
+          nota_interna?: string | null
+          numero?: number | null
+          recargo_factura_completa?: boolean | null
+          recargo_motivo?: string | null
+          recargo_porcentaje_manual?: number | null
+          subtotal_neto?: number | null
+          tipo_factura?: Database["public"]["Enums"]["tipo_factura"] | null
+          total?: number | null
+          updated_at?: string | null
+          usuario_id?: string | null
+          vista_at?: string | null
+        }
+        Update: {
+          canal?: Database["public"]["Enums"]["canal_venta"] | null
+          cliente_id?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          descuento_total?: number | null
+          empresa_id?: string | null
+          estado?: Database["public"]["Enums"]["venta_estado"] | null
+          estado_facturacion_afip?:
+            | Database["public"]["Enums"]["estado_facturacion_afip"]
+            | null
+          id?: string | null
+          items_cantidad_total?: never
+          items_count?: never
+          monto_facturado?: number | null
+          nombre_cliente_custom?: string | null
+          nota_interna?: string | null
+          numero?: number | null
+          recargo_factura_completa?: boolean | null
+          recargo_motivo?: string | null
+          recargo_porcentaje_manual?: number | null
+          subtotal_neto?: number | null
+          tipo_factura?: Database["public"]["Enums"]["tipo_factura"] | null
+          total?: number | null
+          updated_at?: string | null
+          usuario_id?: string | null
+          vista_at?: string | null
+        }
         Relationships: [
           {
             foreignKeyName: "ventas_cliente_id_fkey"
@@ -1592,6 +1700,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -1677,6 +1792,7 @@ export type Database = {
           sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
+          turno_id: string | null
           ultimo_error_facturacion: string | null
           ultimo_intento_facturacion_at: string | null
           ultimo_request_log_id: number | null
@@ -1690,6 +1806,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      cerrar_turno: {
+        Args: {
+          p_nota_cierre?: string
+          p_total_declarado: number
+          p_turno_id: string
+        }
+        Returns: Json
       }
       cerrar_venta: {
         Args: {
@@ -1706,14 +1830,6 @@ export type Database = {
           p_recargo_porcentaje_manual?: number
           p_tipo_factura?: Database["public"]["Enums"]["tipo_factura"]
           p_usuario_id: string
-        }
-        Returns: Json
-      }
-      cerrar_turno: {
-        Args: {
-          p_nota_cierre?: string
-          p_total_declarado: number
-          p_turno_id: string
         }
         Returns: Json
       }
@@ -1853,10 +1969,7 @@ export type Database = {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
-      resumen_turno: {
-        Args: { p_turno_id: string }
-        Returns: Json
-      }
+      resumen_turno: { Args: { p_turno_id: string }; Returns: Json }
       rol_actual: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1894,6 +2007,7 @@ export type Database = {
           sucursal_id: string | null
           tipo_factura: Database["public"]["Enums"]["tipo_factura"]
           total: number
+          turno_id: string | null
           ultimo_error_facturacion: string | null
           ultimo_intento_facturacion_at: string | null
           ultimo_request_log_id: number | null
@@ -1914,6 +2028,7 @@ export type Database = {
         Returns: {
           activa: boolean
           atributos: Json
+          codigo_barras: string | null
           created_at: string
           empresa_id: string
           id: string
