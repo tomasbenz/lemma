@@ -1961,6 +1961,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      productos_bulk_precio_individual: {
+        Args: { p_cambios: Json; p_usuario_id: string }
+        Returns: Json
+      }
       productos_bulk_stock: {
         Args: {
           p_ids: string[]
@@ -1969,6 +1973,10 @@ export type Database = {
           p_usuario_id: string
           p_valor: number
         }
+        Returns: Json
+      }
+      productos_bulk_stock_individual: {
+        Args: { p_cambios: Json; p_motivo: string; p_usuario_id: string }
         Returns: Json
       }
       productos_bulk_update: {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +21,8 @@ import {
   useSeleccionCantidad,
 } from '../_state/seleccion-productos-store'
 import { BulkAccionDialog } from './bulk-accion-dialog'
+import { BulkReglaDialog } from './bulk-regla-dialog'
+import { BulkPreviewDialog } from './bulk-preview-dialog'
 import {
   FormCategoria,
   FormPrecioFijo,
@@ -27,7 +30,16 @@ import {
   FormStock,
   SIN_CATEGORIA,
 } from './bulk-forms'
+import {
+  calcularPreviewPrecioPct,
+  calcularPreviewStock,
+  type FilaPreview,
+} from '../_lib/calcular-preview'
 import type { BulkActualizarInput } from '../_actions/bulk-actualizar-productos'
+import {
+  bulkActualizarProductosIndividual,
+  obtenerPreviewProductos,
+} from '../_actions/bulk-actualizar-individual'
 
 type AccionAbierta =
   | 'activar'
@@ -49,6 +61,12 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
   const limpiar = useSeleccionStore((s) => s.limpiar)
   const [accion, setAccion] = useState<AccionAbierta>(null)
 
+  // Fase 2 (precio_pct / ajustar_stock): regla -> preview editable -> aplicar.
+  const [etapa, setEtapa] = useState<'regla' | 'preview'>('regla')
+  const [previewFilas, setPreviewFilas] = useState<FilaPreview[] | null>(null)
+  const [cargandoPreview, setCargandoPreview] = useState(false)
+  const [aplicando, setAplicando] = useState(false)
+
   // ============ ESTADOS DE FORM (uno por acción) ============
   const [categoria, setCategoria] = useState<string>(SIN_CATEGORIA)
   const [precioFijo, setPrecioFijo] = useState<number | null>(null)
@@ -68,11 +86,26 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
     setStockMotivo('')
   }
 
+  function cerrarTodo() {
+    setAccion(null)
+    setEtapa('regla')
+    setPreviewFilas(null)
+    resetForms()
+  }
+
+  function abrirAccion(a: Exclude<AccionAbierta, null>) {
+    setAccion(a)
+    setEtapa('regla')
+    setPreviewFilas(null)
+  }
+
   if (cantidad === 0) return null
 
-  /** Builder lazy del input: se ejecuta al confirmar. Snapshot de ids fresco
-   *  + valores actuales del form. Devuelve null si los datos son inválidos
-   *  (el dialog muestra un toast.error). */
+  const esFase2 = accion === 'precio_pct' || accion === 'ajustar_stock'
+
+  // ============ FASE 1: input directo para BulkAccionDialog ============
+  /** Builder lazy del input. Solo se invoca para acciones Fase 1 (BulkAccionDialog
+   *  no se monta para las Fase 2). Snapshot fresco de ids al confirmar. */
   function buildInput(): BulkActualizarInput | null {
     if (!accion) return null
     const ids = Array.from(useSeleccionStore.getState().ids)
@@ -120,10 +153,98 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
     }
   }
 
-  // ============ TEXTOS POR ACCIÓN ============
+  // ============ FASE 2: cálculo del pct y validez de la regla ============
+  const pctFinal = pctDireccion === 'bajar' ? -(pctValor ?? 0) : (pctValor ?? 0)
+
+  function reglaFase2Invalida(): boolean {
+    if (accion === 'precio_pct') {
+      return pctValor === null || pctValor <= 0 || pctFinal < -100
+    }
+    if (accion === 'ajustar_stock') {
+      if (stockValor === null) return true
+      if (stockModo === 'fijar' ? stockValor < 0 : stockValor <= 0) return true
+      if (stockMotivo.trim().length < 3) return true
+      return false
+    }
+    return true
+  }
+
+  /** Paso "Revisar cambios": trae datos frescos y arma las filas de la preview. */
+  async function revisarCambios() {
+    const ids = Array.from(useSeleccionStore.getState().ids)
+    if (ids.length === 0) return
+    setCargandoPreview(true)
+    try {
+      const res = await obtenerPreviewProductos(ids)
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      const filas =
+        accion === 'precio_pct'
+          ? calcularPreviewPrecioPct(res.productos, pctFinal)
+          : calcularPreviewStock(res.productos, stockModo, stockValor ?? 0)
+      setPreviewFilas(filas)
+      setEtapa('preview')
+    } catch {
+      toast.error('No se pudo armar la vista previa')
+    } finally {
+      setCargandoPreview(false)
+    }
+  }
+
+  /** Confirmar en la preview: arma los cambios finales (override manual o
+   *  propuesto), llama la RPC individual y muestra el resumen. */
+  async function aplicarPreview(overrides: Map<string, number>) {
+    if (!previewFilas) return
+    const aplicables = previewFilas.filter((f) => !f.omitido)
+    if (aplicables.length === 0) return
+
+    setAplicando(true)
+    try {
+      const res =
+        accion === 'precio_pct'
+          ? await bulkActualizarProductosIndividual({
+              accion: 'precio_individual',
+              cambios: aplicables.map((f) => ({
+                id: f.id,
+                precio: overrides.get(f.id) ?? f.propuesto,
+              })),
+            })
+          : await bulkActualizarProductosIndividual({
+              accion: 'stock_individual',
+              motivo: stockMotivo.trim(),
+              cambios: aplicables.map((f) => ({
+                id: f.id,
+                stock: overrides.get(f.id) ?? f.propuesto,
+              })),
+            })
+
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+
+      toast.success(
+        `${res.afectados} producto${res.afectados === 1 ? '' : 's'} actualizado${res.afectados === 1 ? '' : 's'}`,
+        res.omitidos.length > 0
+          ? {
+              description: `${res.omitidos.length} omitido${res.omitidos.length === 1 ? '' : 's'} (no aplicaba la acción).`,
+            }
+          : undefined
+      )
+      cerrarTodo()
+      limpiar()
+    } finally {
+      setAplicando(false)
+    }
+  }
+
+  // ============ TEXTOS ============
+  const n = cantidad
+  const plural = n === 1 ? '' : 's'
+
   function tituloDialog(): string {
-    const n = cantidad
-    const plural = n === 1 ? '' : 's'
     switch (accion) {
       case 'activar':
         return `¿Activar ${n} producto${plural}?`
@@ -164,6 +285,19 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
       default:
         return 'Aplicar'
     }
+  }
+
+  function subtituloPreview(): string {
+    if (accion === 'precio_pct') {
+      return `Los precios ${pctDireccion === 'subir' ? 'suben' : 'bajan'} un ${pctValor ?? 0}%. Podés ajustar fila por fila.`
+    }
+    const modoTxt =
+      stockModo === 'sumar'
+        ? `Sumar ${stockValor ?? 0}`
+        : stockModo === 'restar'
+          ? `Restar ${stockValor ?? 0}`
+          : `Fijar en ${stockValor ?? 0}`
+    return `${modoTxt}. Podés ajustar fila por fila.`
   }
 
   function renderForm() {
@@ -232,30 +366,30 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="end">
-              <DropdownMenuItem onClick={() => setAccion('activar')}>
+              <DropdownMenuItem onClick={() => abrirAccion('activar')}>
                 Activar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAccion('desactivar')}>
+              <DropdownMenuItem onClick={() => abrirAccion('desactivar')}>
                 Desactivar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setAccion('cambiar_categoria')}>
+              <DropdownMenuItem onClick={() => abrirAccion('cambiar_categoria')}>
                 Cambiar categoría
               </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>Cambiar precio</DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => setAccion('precio_pct')}>
+                    <DropdownMenuItem onClick={() => abrirAccion('precio_pct')}>
                       Por porcentaje
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setAccion('precio_fijo')}>
+                    <DropdownMenuItem onClick={() => abrirAccion('precio_fijo')}>
                       Fijar precio
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuItem onClick={() => setAccion('ajustar_stock')}>
+              <DropdownMenuItem onClick={() => abrirAccion('ajustar_stock')}>
                 Ajustar stock
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -263,13 +397,11 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
         </div>
       </div>
 
+      {/* FASE 1: confirmación directa (activar/desactivar/categoría/precio fijo) */}
       <BulkAccionDialog
-        open={accion !== null}
+        open={accion !== null && !esFase2}
         onOpenChange={(open) => {
-          if (!open) {
-            setAccion(null)
-            resetForms()
-          }
+          if (!open) cerrarTodo()
         }}
         buildInput={buildInput}
         titulo={tituloDialog()}
@@ -280,6 +412,38 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
       >
         {renderForm()}
       </BulkAccionDialog>
+
+      {/* FASE 2 — paso regla base (precio_pct / ajustar_stock) */}
+      <BulkReglaDialog
+        open={esFase2 && etapa === 'regla'}
+        onOpenChange={(open) => {
+          if (!open) cerrarTodo()
+        }}
+        titulo={tituloDialog()}
+        confirmLabel="Revisar cambios"
+        onConfirm={revisarCambios}
+        loading={cargandoPreview}
+        confirmDisabled={reglaFase2Invalida()}
+      >
+        {renderForm()}
+      </BulkReglaDialog>
+
+      {/* FASE 2 — preview editable */}
+      {previewFilas && (
+        <BulkPreviewDialog
+          open={esFase2 && etapa === 'preview'}
+          onOpenChange={(open) => {
+            // Volver / ESC / X → vuelve al paso de regla (sin perder los datos).
+            if (!open) setEtapa('regla')
+          }}
+          titulo={tituloDialog()}
+          subtitulo={subtituloPreview()}
+          filas={previewFilas}
+          tipoValor={accion === 'ajustar_stock' ? 'stock' : 'precio'}
+          onConfirmar={aplicarPreview}
+          loading={aplicando}
+        />
+      )}
     </>
   )
 }

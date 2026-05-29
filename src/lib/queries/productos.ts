@@ -209,6 +209,59 @@ export async function listarProductoIdsPorFiltro(
   }
 }
 
+export type ProductoPreview = {
+  id: string
+  nombre: string
+  precio_neto: number
+  track_stock: boolean
+  variantes: { id: string; stock: number; activa: boolean; sku_variante: string }[]
+}
+
+/**
+ * Trae el shape liviano necesario para la preview editable de acciones masivas
+ * (Fase 2): valor actual de precio y stock por variante. A diferencia de
+ * `listarProductos`, busca por una lista explícita de ids (la selección puede
+ * incluir ids de páginas que el listado no cargó).
+ *
+ * Defense in depth: filtra por empresa_id del usuario autenticado además de RLS.
+ */
+export async function obtenerProductosParaPreview(
+  ids: string[]
+): Promise<ProductoPreview[]> {
+  if (!Array.isArray(ids) || ids.length === 0) return []
+  if (ids.length > BULK_CAP) {
+    throw new Error('Demasiados productos para previsualizar (máx. 1000)')
+  }
+
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('productos')
+    .select('id, nombre, precio_neto, track_stock, variantes(id, stock, activa, sku_variante)')
+    .in('id', ids)
+    .eq('empresa_id', user.empresa_id)
+
+  if (error) {
+    console.error('[obtenerProductosParaPreview] Error:', error.message)
+    throw new Error('Error al cargar productos para la vista previa')
+  }
+
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    nombre: p.nombre,
+    precio_neto: p.precio_neto,
+    track_stock: p.track_stock,
+    variantes: (p.variantes ?? []).map((v) => ({
+      id: v.id,
+      stock: v.stock,
+      activa: v.activa,
+      sku_variante: v.sku_variante ?? '',
+    })),
+  }))
+}
+
 /**
  * Obtiene un producto por ID con TODAS sus variantes (activas e inactivas).
  *
