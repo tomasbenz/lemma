@@ -1961,6 +1961,25 @@ export type Database = {
         }
         Returns: undefined
       }
+      productos_bulk_stock: {
+        Args: {
+          p_ids: string[]
+          p_modo: string
+          p_motivo: string
+          p_usuario_id: string
+          p_valor: number
+        }
+        Returns: Json
+      }
+      productos_bulk_update: {
+        Args: {
+          p_accion: string
+          p_ids: string[]
+          p_params?: Json
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       registrar_login: {
         Args: { p_ip?: unknown; p_user_agent?: string }
         Returns: undefined
