@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useSyncExternalStore } from 'react'
+import { useState, useTransition, useSyncExternalStore, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 import Link from 'next/link'
@@ -30,6 +30,9 @@ import { EmptyState } from '@/components/app/empty-state'
 import { Paginador } from '@/components/app/paginador'
 import { ProductosTabla, type Orden } from './productos-tabla'
 import { ProductosCards } from './productos-cards'
+import { SeleccionBanner } from './seleccion-banner'
+import { BulkBarProductos } from './bulk-bar-productos'
+import { useSeleccionStore } from '../_state/seleccion-productos-store'
 import { cn } from '@/lib/utils'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
 
@@ -168,6 +171,18 @@ export function ProductosView({
     setBusquedaLocal(valor)
     actualizarBusqueda(valor)
   }
+
+  // ============ SELECCIÓN MASIVA ============
+  // Reset de la selección al cambiar los filtros que cambian el universo de
+  // productos (q/estado/stock/categoria). NO al cambiar orden/page/per_page:
+  // esos no invalidan los ids, así la selección persiste cross-página.
+  const limpiarSeleccion = useSeleccionStore((s) => s.limpiar)
+  const filterKey = `${filters.q}|${filters.estado}|${filters.stock}|${filters.categoria}`
+  useEffect(() => {
+    limpiarSeleccion()
+  }, [filterKey, limpiarSeleccion])
+
+  const paginaIds = productos.map((p) => p.id)
 
   // ============ FILTROS ============
   const mostrarSoloActivos = filters.estado !== 'todos'
@@ -379,7 +394,14 @@ export function ProductosView({
       ) : vista === 'tabla' ? (
         <>
           {/* Desktop: tabla | Mobile: siempre cards */}
-          <div className="hidden sm:block">
+          <div className="hidden sm:block space-y-3">
+            {puedeEditar && (
+              <SeleccionBanner
+                paginaIds={paginaIds}
+                total={total}
+                filters={filters}
+              />
+            )}
             <ProductosTabla
               productos={productos}
               orden={ordenActual as Orden}
@@ -410,6 +432,8 @@ export function ProductosView({
           />
         </div>
       )}
+
+      {puedeEditar && <BulkBarProductos />}
     </div>
   )
 }

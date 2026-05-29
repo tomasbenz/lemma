@@ -26,6 +26,8 @@ import type { ProductoConVariantes } from '@/lib/queries/productos'
 import { StockCell, type VarianteStock } from './stock-cell'
 import { PrecioCell } from './precio-cell'
 import { ActivoToggle } from './activo-toggle'
+import { FilaCheckbox } from './fila-checkbox'
+import { SeleccionHeaderCheckbox } from './seleccion-header-checkbox'
 import { formatARS, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -76,11 +78,18 @@ export function ProductosTabla({
     }
   }
 
+  const paginaIds = productos.map((p) => p.id)
+
   return (
     <div className="rounded-lg border overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
+            {puedeEditar && (
+              <TableHead className="w-10">
+                <SeleccionHeaderCheckbox paginaIds={paginaIds} />
+              </TableHead>
+            )}
             <SortableHeader
               column="nombre"
               label="Producto"
@@ -110,6 +119,11 @@ export function ProductosTabla({
 
             return (
               <TableRow key={producto.id} className="group hover:bg-muted/30">
+                {puedeEditar && (
+                  <TableCell className="w-10">
+                    <FilaCheckbox id={producto.id} />
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">
                   <Link
                     href={`/admin/productos/${producto.id}`}
