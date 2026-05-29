@@ -433,7 +433,7 @@ export function ProductosView({
         </div>
       )}
 
-      {puedeEditar && <BulkBarProductos />}
+      {puedeEditar && <BulkBarProductos categorias={categorias} />}
     </div>
   )
 }
