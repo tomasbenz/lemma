@@ -32,6 +32,7 @@ import { ProductosTabla, type Orden } from './productos-tabla'
 import { ProductosCards } from './productos-cards'
 import { SeleccionBanner } from './seleccion-banner'
 import { BulkBarProductos } from './bulk-bar-productos'
+import { ExportarBoton } from './exportar-boton'
 import { useSeleccionStore } from '../_state/seleccion-productos-store'
 import { cn } from '@/lib/utils'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
@@ -346,6 +347,9 @@ export function ProductosView({
             Cards
           </button>
         </div>
+
+        {/* Export (todos los roles: read-only del catálogo visible) */}
+        <ExportarBoton filters={filters} />
       </div>
 
       {/* ============ VISTA ============ */}

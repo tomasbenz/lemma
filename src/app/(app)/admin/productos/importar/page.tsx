@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ImportarProductosView } from "./_components/importar-productos-view";
+import { ImportarTabs } from "./_components/importar-tabs";
 
 export const metadata = {
   title: "Importar productos | Lemma",
@@ -26,12 +26,12 @@ export default function ImportarProductosPage() {
             Importar productos
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Subí un Excel con tu catálogo. Los productos nuevos se crean, los
-            existentes se actualizan. El stock se carga después por producto.
+            Subí un Excel para crear/actualizar productos por template, o
+            actualizá productos existentes desde un archivo exportado.
           </p>
         </div>
 
-        <ImportarProductosView />
+        <ImportarTabs />
       </div>
     </div>
   );

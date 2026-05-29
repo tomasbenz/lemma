@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import type { Database } from '@/types/database'
 import { escaparParaOrFilter } from './_helpers'
+import { formatAtributos } from '@/lib/format-atributos'
 
 export type ProductoConVariantes = Database['public']['Tables']['productos']['Row'] & {
   variantes: Database['public']['Tables']['variantes']['Row'][]
@@ -260,6 +261,106 @@ export async function obtenerProductosParaPreview(
       sku_variante: v.sku_variante ?? '',
     })),
   }))
+}
+
+export type ProductoFilaExport = {
+  sku_base: string
+  sku_variante: string
+  nombre: string
+  atributos: string
+  categoria: string | null
+  precio_neto: number
+  stock: number
+  activo_producto: boolean
+  activa_variante: boolean
+  codigo_barras: string | null
+}
+
+/**
+ * Aplana el catálogo a UNA fila por variante para exportar a Excel (Fase 3).
+ * Aplica los mismos filtros que `listarProductos` (sin paginación) y trae TODAS
+ * las variantes (activas e inactivas), para que el round-trip export → editar →
+ * import pueda reactivar/ajustar cualquier variante.
+ *
+ * Defense in depth: filtra por empresa_id además de RLS.
+ */
+export async function exportarProductosFilas(
+  options: ListarProductosOptions = {}
+): Promise<ProductoFilaExport[]> {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return []
+
+  const supabase = await createClient()
+
+  const {
+    busqueda = '',
+    soloActivos = true,
+    stockBajo = false,
+    categoria = '',
+  } = options
+
+  const q = escaparParaOrFilter(busqueda)
+
+  let agg = supabase
+    .from('productos_con_stock_total')
+    .select('id, sku_base, nombre, categoria, precio_neto, track_stock, activo')
+    .eq('empresa_id', user.empresa_id)
+
+  if (soloActivos) agg = agg.eq('activo', true)
+  if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
+  if (categoria) agg = agg.eq('categoria', categoria)
+  if (q) agg = agg.or(`nombre.ilike.%${q}%,sku_base.ilike.%${q}%`)
+
+  agg = agg.order('nombre', { ascending: true })
+
+  const { data: prods, error: errProds } = await agg
+  if (errProds) {
+    console.error('[exportarProductosFilas] Error productos:', errProds.message)
+    throw new Error('Error al exportar productos')
+  }
+  if (!prods || prods.length === 0) return []
+
+  const ids = prods.map((p) => p.id as string)
+  const { data: variantes, error: errVar } = await supabase
+    .from('variantes')
+    .select('producto_id, sku_variante, atributos, stock, activa, codigo_barras')
+    .in('producto_id', ids)
+    .eq('empresa_id', user.empresa_id)
+
+  if (errVar) {
+    console.error('[exportarProductosFilas] Error variantes:', errVar.message)
+    throw new Error('Error al exportar variantes')
+  }
+
+  const variantesPorProducto = new Map<string, typeof variantes>()
+  for (const v of variantes ?? []) {
+    const arr = variantesPorProducto.get(v.producto_id) ?? []
+    arr.push(v)
+    variantesPorProducto.set(v.producto_id, arr)
+  }
+
+  const filas: ProductoFilaExport[] = []
+  for (const p of prods) {
+    const vars = [...(variantesPorProducto.get(p.id as string) ?? [])].sort(
+      (a, b) => (a.sku_variante ?? '').localeCompare(b.sku_variante ?? '')
+    )
+    for (const v of vars) {
+      filas.push({
+        sku_base: p.sku_base as string,
+        sku_variante: v.sku_variante ?? '',
+        nombre: p.nombre as string,
+        atributos: formatAtributos(v.atributos),
+        categoria: (p.categoria as string | null) ?? null,
+        precio_neto: p.precio_neto as number,
+        stock: v.stock,
+        activo_producto: p.activo as boolean,
+        activa_variante: v.activa,
+        codigo_barras: v.codigo_barras ?? null,
+      })
+    }
+  }
+
+  return filas
 }
 
 /**
