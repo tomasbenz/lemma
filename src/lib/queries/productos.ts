@@ -137,6 +137,78 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
   }
 }
 
+export type ListarProductoIdsResult = {
+  ids: string[]
+  /**
+   * true si el filtro matchea MÁS de 1000 productos. En ese caso `ids` viene
+   * truncado a los primeros 1000 y el UI debe avisar al usuario que solo se
+   * seleccionaron esos (las acciones masivas cortan a 1000 por operación).
+   */
+  excedeCap: boolean
+}
+
+const BULK_CAP = 1000
+
+/**
+ * Devuelve SOLO los ids de los productos que matchean un filtro, sin variantes
+ * ni metadata. Pensada para el "seleccionar todos los del filtro" de las
+ * acciones masivas: permite obtener los ids de los ~6000 productos de un filtro
+ * sin traer las filas completas al cliente.
+ *
+ * Reusa la vista `productos_con_stock_total` y aplica EXACTAMENTE los mismos
+ * filtros que `listarProductos` (sin orden/limit/offset), así "seleccionar
+ * todos" coincide fila por fila con lo que muestra el listado.
+ *
+ * Cap de seguridad: si el filtro matchea más de 1000 productos, corta en 1000
+ * y devuelve `excedeCap: true` (las RPCs de bulk rechazan > 1000 igual).
+ */
+export async function listarProductoIdsPorFiltro(
+  options: Pick<
+    ListarProductosOptions,
+    'busqueda' | 'soloActivos' | 'stockBajo' | 'categoria'
+  > = {}
+): Promise<ListarProductoIdsResult> {
+  const supabase = await createClient()
+
+  const {
+    busqueda = '',
+    soloActivos = true,
+    stockBajo = false,
+    categoria = '',
+  } = options
+
+  const busquedaSanitizada = escaparParaOrFilter(busqueda)
+
+  let query = supabase.from('productos_con_stock_total').select('id')
+
+  if (soloActivos) query = query.eq('activo', true)
+  if (stockBajo) query = query.eq('tiene_stock_bajo', true)
+  if (categoria) query = query.eq('categoria', categoria)
+  if (busquedaSanitizada) {
+    query = query.or(
+      `nombre.ilike.%${busquedaSanitizada}%,sku_base.ilike.%${busquedaSanitizada}%`
+    )
+  }
+
+  // Traemos 1001 para detectar el exceso de cap sin un count aparte.
+  query = query.limit(BULK_CAP + 1)
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('[listarProductoIdsPorFiltro] Error:', error.message)
+    throw new Error('Error al listar ids de productos')
+  }
+
+  const todos = (data ?? []).map((p) => p.id as string)
+  const excedeCap = todos.length > BULK_CAP
+
+  return {
+    ids: excedeCap ? todos.slice(0, BULK_CAP) : todos,
+    excedeCap,
+  }
+}
+
 /**
  * Obtiene un producto por ID con TODAS sus variantes (activas e inactivas).
  *
