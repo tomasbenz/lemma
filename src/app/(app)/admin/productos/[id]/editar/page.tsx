@@ -82,6 +82,12 @@ export default async function EditarProductoPage({
     categoria: producto.categoria ?? '',
     descripcion_corta: producto.descripcion_corta ?? '',
     codigo_barras: codigoBarrasInicial,
+    // Sin esto, el form arranca con imagen_url undefined y al guardar persiste
+    // null en la DB + dispara borrarImagenProducto sobre la imagen vieja,
+    // eliminando la foto en cualquier edición. Preservarla acá es lo único
+    // necesario: si el usuario la quita explícitamente desde el upload, el
+    // form la pasa a null y ahí sí corresponde borrar.
+    imagen_url: producto.imagen_url ?? null,
     track_stock: producto.track_stock,
     tiene_variantes: tieneVariantes,
     stock_inicial: stockInicial,
