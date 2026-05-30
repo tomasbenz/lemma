@@ -40,6 +40,18 @@ async function obtenerIdsBusquedaFuzzy(
     p_query: q,
   })
 
+  // DEBUG TEMPORAL — sacar después de diagnosticar
+  console.log(
+    '[FUZZY DEBUG] query:',
+    q,
+    '| error:',
+    error?.message,
+    '| data length:',
+    data?.length,
+    '| sample:',
+    data?.slice(0, 3)
+  )
+
   if (error) {
     console.error('[buscar_productos_ids] Error:', error.message)
     return []
@@ -126,6 +138,13 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     if (!user?.empresa_id) return { productos: [], total: 0 }
 
     const rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
+    // DEBUG TEMPORAL — sacar después de diagnosticar
+    console.log(
+      '[FUZZY DEBUG] rankedIds.length:',
+      rankedIds?.length,
+      '| primeros 3:',
+      rankedIds?.slice(0, 3)
+    )
     if (!rankedIds || rankedIds.length === 0) {
       return { productos: [], total: 0 }
     }
@@ -141,6 +160,21 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     if (categoria) filtroQuery = filtroQuery.eq('categoria', categoria)
 
     const { data: survData, error: survError } = await filtroQuery
+    // DEBUG TEMPORAL — sacar después de diagnosticar
+    console.log(
+      '[FUZZY DEBUG] survData.length:',
+      survData?.length,
+      '| sobreviven:',
+      survData?.length
+    )
+    console.log(
+      '[FUZZY DEBUG] flags: soloActivos:',
+      soloActivos,
+      'stockBajo:',
+      stockBajo,
+      'categoria:',
+      categoria
+    )
     if (survError) {
       console.error('[listarProductos] Error filtro fuzzy:', survError.message)
       throw new Error('Error al listar productos')
