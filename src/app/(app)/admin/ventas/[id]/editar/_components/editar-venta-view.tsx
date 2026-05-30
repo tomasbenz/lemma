@@ -31,6 +31,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatARS } from '@/lib/format'
 import { formatAtributos } from '@/lib/format-atributos'
+import { rankear } from '@/lib/search/fuzzy'
 import { SelectorVariantes } from '@/app/(app)/caja/_components/selector-variantes'
 import type {
   ProductoCaja,
@@ -167,17 +168,15 @@ export function EditarVentaView({
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const productosFiltrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return productos
-    return productos.filter((p) => {
-      return (
-        p.nombre.toLowerCase().includes(q) ||
-        p.sku_base.toLowerCase().includes(q) ||
-        p.categoria?.toLowerCase().includes(q)
-      )
-    })
-  }, [productos, busqueda])
+  const productosFiltrados = useMemo(
+    () =>
+      rankear(
+        productos,
+        busqueda,
+        (p) => `${p.nombre} ${p.sku_base} ${p.categoria ?? ''}`
+      ),
+    [productos, busqueda]
+  )
 
   const productosPorVariante = useMemo(() => {
     const m = new Map<

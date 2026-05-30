@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import type { Database } from '@/types/database'
-import { escaparParaOrFilter } from './_helpers'
 import { formatAtributos } from '@/lib/format-atributos'
 
 export type ProductoConVariantes = Database['public']['Tables']['productos']['Row'] & {
@@ -19,11 +18,94 @@ export type ListarProductosOptions = {
   offset?: number
 }
 
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Búsqueda fuzzy de productos vía RPC (pg_trgm + unaccent). Devuelve los ids
+ * ordenados por similaridad descendente. PostgREST no expone el operador `%`,
+ * por eso la búsqueda fuzzy va por RPC y no inline.
+ *
+ * - `null` → no hay búsqueda (el caller usa su filtrado normal sin texto).
+ * - `[]`   → hay búsqueda pero sin coincidencias.
+ */
+async function obtenerIdsBusquedaFuzzy(
+  supabase: SupabaseServer,
+  busqueda: string
+): Promise<string[] | null> {
+  const q = busqueda.trim()
+  if (!q) return null
+
+  // La RPC deriva empresa_id de auth.uid() (no se pasa desde el cliente).
+  const { data, error } = await supabase.rpc('buscar_productos_ids', {
+    p_query: q,
+  })
+
+  if (error) {
+    console.error('[buscar_productos_ids] Error:', error.message)
+    return []
+  }
+
+  // La RPC ya devuelve ids ordenados por similaridad DESC.
+  return (data ?? []).map((r) => r.id as string)
+}
+
+/**
+ * Trae las variantes de un set de filas agregadas y arma ProductoConVariantes[],
+ * respetando el orden de `aggData`. Compartido por la rama con y sin búsqueda.
+ */
+async function hidratarConVariantes(
+  supabase: SupabaseServer,
+  aggData: Record<string, unknown>[]
+): Promise<ProductoConVariantes[]> {
+  if (aggData.length === 0) return []
+
+  const ids = aggData.map((p) => p.id as string)
+  const { data: variantesData, error: varError } = await supabase
+    .from('variantes')
+    .select('*')
+    .in('producto_id', ids)
+
+  if (varError) {
+    console.error('[listarProductos] Error variantes:', varError.message)
+    throw new Error('Error al cargar variantes')
+  }
+
+  const variantesPorProducto = new Map<
+    string,
+    Database['public']['Tables']['variantes']['Row'][]
+  >()
+  for (const v of variantesData ?? []) {
+    const arr = variantesPorProducto.get(v.producto_id) ?? []
+    arr.push(v)
+    variantesPorProducto.set(v.producto_id, arr)
+  }
+
+  return aggData.map((p) => {
+    const variantes = variantesPorProducto.get(p.id as string) ?? []
+    return {
+      id: p.id as string,
+      nombre: p.nombre as string,
+      sku_base: p.sku_base as string,
+      precio_neto: p.precio_neto as number,
+      categoria: p.categoria as string | null,
+      imagen_url: p.imagen_url as string | null,
+      track_stock: p.track_stock as boolean,
+      activo: p.activo as boolean,
+      descripcion_corta: p.descripcion_corta as string | null,
+      created_at: p.created_at as string,
+      variantes,
+      stock_total: Number(p.stock_total ?? 0),
+    } as ProductoConVariantes
+  })
+}
+
 /**
  * Lista productos con sus variantes agregadas.
  *
- * Filtros, búsqueda, orden y stock bajo se aplican en la DB vía función
- * agregada cuando es posible, para evitar traer data innecesaria a Node.
+ * Filtros, orden y stock bajo se aplican en la DB. La búsqueda por texto usa
+ * fuzzy (pg_trgm) vía RPC: cuando hay búsqueda, los resultados se ordenan por
+ * similaridad descendente (ignorando el `orden` pedido) y se paginan sobre la
+ * lista de ids ya rankeada.
  */
 export async function listarProductos(options: ListarProductosOptions = {}) {
   const supabase = await createClient()
@@ -38,9 +120,58 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     offset = 0,
   } = options
 
-  const busquedaSanitizada = escaparParaOrFilter(busqueda)
+  // ===== Rama con búsqueda: fuzzy por RPC, ordenado por similaridad =====
+  if (busqueda.trim()) {
+    const user = await getCurrentUser()
+    if (!user?.empresa_id) return { productos: [], total: 0 }
 
-  // 1. Obtener IDs y stocks agregados desde la DB con una query
+    const rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
+    if (!rankedIds || rankedIds.length === 0) {
+      return { productos: [], total: 0 }
+    }
+
+    // Aplicar el resto de filtros sobre los ids fuzzy, preservando el orden
+    // de similaridad (la vista no expone `sim`, así que reordenamos en JS).
+    let filtroQuery = supabase
+      .from('productos_con_stock_total')
+      .select('id')
+      .in('id', rankedIds)
+    if (soloActivos) filtroQuery = filtroQuery.eq('activo', true)
+    if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
+    if (categoria) filtroQuery = filtroQuery.eq('categoria', categoria)
+
+    const { data: survData, error: survError } = await filtroQuery
+    if (survError) {
+      console.error('[listarProductos] Error filtro fuzzy:', survError.message)
+      throw new Error('Error al listar productos')
+    }
+
+    const sobreviven = new Set((survData ?? []).map((r) => r.id as string))
+    const ordenados = rankedIds.filter((id) => sobreviven.has(id))
+    const total = ordenados.length
+
+    const pageIds = ordenados.slice(offset, offset + limit)
+    if (pageIds.length === 0) return { productos: [], total }
+
+    const { data: rows, error: rowsError } = await supabase
+      .from('productos_con_stock_total')
+      .select('*')
+      .in('id', pageIds)
+    if (rowsError) {
+      console.error('[listarProductos] Error rows fuzzy:', rowsError.message)
+      throw new Error('Error al listar productos')
+    }
+
+    const porId = new Map((rows ?? []).map((r) => [r.id as string, r]))
+    const aggData = pageIds
+      .map((id) => porId.get(id))
+      .filter((r): r is NonNullable<typeof r> => r != null)
+
+    const productos = await hidratarConVariantes(supabase, aggData)
+    return { productos, total }
+  }
+
+  // ===== Rama sin búsqueda: filtros + orden + paginación en la vista =====
   let aggQuery = supabase
     .from('productos_con_stock_total')
     .select('*', { count: 'exact' })
@@ -51,12 +182,6 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
 
   if (categoria) {
     aggQuery = aggQuery.eq('categoria', categoria)
-  }
-
-  if (busquedaSanitizada) {
-    aggQuery = aggQuery.or(
-      `nombre.ilike.%${busquedaSanitizada}%,sku_base.ilike.%${busquedaSanitizada}%`
-    )
   }
 
   // Orden
@@ -91,46 +216,7 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     return { productos: [], total: count ?? 0 }
   }
 
-  // 2. Traer variantes solo de los productos visibles (página actual)
-  const ids = aggData.map((p) => p.id as string)
-  const { data: variantesData, error: varError } = await supabase
-    .from('variantes')
-    .select('*')
-    .in('producto_id', ids)
-
-  if (varError) {
-    console.error('[listarProductos] Error variantes:', varError.message)
-    throw new Error('Error al cargar variantes')
-  }
-
-  const variantesPorProducto = new Map<
-    string,
-    Database['public']['Tables']['variantes']['Row'][]
-  >()
-  for (const v of variantesData ?? []) {
-    const arr = variantesPorProducto.get(v.producto_id) ?? []
-    arr.push(v)
-    variantesPorProducto.set(v.producto_id, arr)
-  }
-
-  // 3. Armar respuesta respetando el orden ya aplicado
-  const productos: ProductoConVariantes[] = aggData.map((p) => {
-    const variantes = variantesPorProducto.get(p.id as string) ?? []
-    return {
-      id: p.id as string,
-      nombre: p.nombre as string,
-      sku_base: p.sku_base as string,
-      precio_neto: p.precio_neto as number,
-      categoria: p.categoria as string | null,
-      imagen_url: p.imagen_url as string | null,
-      track_stock: p.track_stock as boolean,
-      activo: p.activo as boolean,
-      descripcion_corta: p.descripcion_corta as string | null,
-      created_at: p.created_at as string,
-      variantes,
-      stock_total: Number(p.stock_total ?? 0),
-    } as ProductoConVariantes
-  })
+  const productos = await hidratarConVariantes(supabase, aggData)
 
   return {
     productos,
@@ -178,18 +264,46 @@ export async function listarProductoIdsPorFiltro(
     categoria = '',
   } = options
 
-  const busquedaSanitizada = escaparParaOrFilter(busqueda)
+  // ===== Rama con búsqueda: fuzzy por RPC =====
+  if (busqueda.trim()) {
+    const user = await getCurrentUser()
+    if (!user?.empresa_id) return { ids: [], excedeCap: false }
 
+    const rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
+    if (!rankedIds || rankedIds.length === 0) {
+      return { ids: [], excedeCap: false }
+    }
+
+    let q = supabase
+      .from('productos_con_stock_total')
+      .select('id')
+      .in('id', rankedIds)
+    if (soloActivos) q = q.eq('activo', true)
+    if (stockBajo) q = q.eq('tiene_stock_bajo', true)
+    if (categoria) q = q.eq('categoria', categoria)
+
+    const { data, error } = await q
+    if (error) {
+      console.error('[listarProductoIdsPorFiltro] Error fuzzy:', error.message)
+      throw new Error('Error al listar ids de productos')
+    }
+
+    const sobreviven = new Set((data ?? []).map((r) => r.id as string))
+    const ordenados = rankedIds.filter((id) => sobreviven.has(id))
+    const excedeCap = ordenados.length > BULK_CAP
+
+    return {
+      ids: excedeCap ? ordenados.slice(0, BULK_CAP) : ordenados,
+      excedeCap,
+    }
+  }
+
+  // ===== Rama sin búsqueda =====
   let query = supabase.from('productos_con_stock_total').select('id')
 
   if (soloActivos) query = query.eq('activo', true)
   if (stockBajo) query = query.eq('tiene_stock_bajo', true)
   if (categoria) query = query.eq('categoria', categoria)
-  if (busquedaSanitizada) {
-    query = query.or(
-      `nombre.ilike.%${busquedaSanitizada}%,sku_base.ilike.%${busquedaSanitizada}%`
-    )
-  }
 
   // Traemos 1001 para detectar el exceso de cap sin un count aparte.
   query = query.limit(BULK_CAP + 1)
@@ -299,7 +413,13 @@ export async function exportarProductosFilas(
     categoria = '',
   } = options
 
-  const q = escaparParaOrFilter(busqueda)
+  // Búsqueda fuzzy (si hay): restringe a los ids que matchean. El export se
+  // ordena por nombre (es una planilla); no necesita orden por similaridad.
+  let rankedIds: string[] | null = null
+  if (busqueda.trim()) {
+    rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
+    if (!rankedIds || rankedIds.length === 0) return []
+  }
 
   let agg = supabase
     .from('productos_con_stock_total')
@@ -309,7 +429,7 @@ export async function exportarProductosFilas(
   if (soloActivos) agg = agg.eq('activo', true)
   if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
   if (categoria) agg = agg.eq('categoria', categoria)
-  if (q) agg = agg.or(`nombre.ilike.%${q}%,sku_base.ilike.%${q}%`)
+  if (rankedIds) agg = agg.in('id', rankedIds)
 
   agg = agg.order('nombre', { ascending: true })
 

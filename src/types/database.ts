@@ -1064,6 +1064,7 @@ export type Database = {
         Row: {
           activo: boolean
           alicuota_iva: number
+          busqueda_normalizada: string | null
           categoria: string | null
           created_at: string
           descripcion_corta: string | null
@@ -1087,6 +1088,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           alicuota_iva?: number
+          busqueda_normalizada?: string | null
           categoria?: string | null
           created_at?: string
           descripcion_corta?: string | null
@@ -1110,6 +1112,7 @@ export type Database = {
         Update: {
           activo?: boolean
           alicuota_iva?: number
+          busqueda_normalizada?: string | null
           categoria?: string | null
           created_at?: string
           descripcion_corta?: string | null
@@ -1874,6 +1877,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      buscar_productos_ids: {
+        Args: { p_query: string; p_umbral?: number }
+        Returns: {
+          id: string
+          sim: number
+        }[]
+      }
       cerrar_turno: {
         Args: {
           p_nota_cierre?: string
@@ -1983,10 +1993,12 @@ export type Database = {
         }
         Returns: Json
       }
+      immutable_unaccent: { Args: { t: string }; Returns: string }
       importar_productos_bulk: {
         Args: { p_productos: Json; p_usuario_id: string }
         Returns: Json
       }
+      normalizar_busqueda: { Args: { t: string }; Returns: string }
       normalizar_nombre: { Args: { texto: string }; Returns: string }
       obtener_turno_activo: {
         Args: { p_caja_id: string }
@@ -2147,6 +2159,9 @@ export type Database = {
         Args: { p_motivo: string; p_usuario_id: string }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      unaccent: { Args: { "": string }; Returns: string }
       ventas_totales_filtrados: {
         Args: {
           p_busqueda_texto?: string

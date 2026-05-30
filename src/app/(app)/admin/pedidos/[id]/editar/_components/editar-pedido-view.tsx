@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Search, Package, Trash2, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Search, Package, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { formatARS } from '@/lib/format'
 import { formatAtributos } from '@/lib/format-atributos'
+import { rankear } from '@/lib/search/fuzzy'
 import { SelectorVariantes } from '@/app/(app)/caja/_components/selector-variantes'
 import type {
   ProductoCaja,
@@ -115,17 +116,15 @@ export function EditarPedidoView({
     useState<ProductoCaja | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const productosFiltrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return productos
-    return productos.filter((p) => {
-      return (
-        p.nombre.toLowerCase().includes(q) ||
-        p.sku_base.toLowerCase().includes(q) ||
-        p.categoria?.toLowerCase().includes(q)
-      )
-    })
-  }, [productos, busqueda])
+  const productosFiltrados = useMemo(
+    () =>
+      rankear(
+        productos,
+        busqueda,
+        (p) => `${p.nombre} ${p.sku_base} ${p.categoria ?? ''}`
+      ),
+    [productos, busqueda]
+  )
 
   // Index para mirar precio_neto del producto al agregar variantes
   const productosPorVariante = useMemo(() => {

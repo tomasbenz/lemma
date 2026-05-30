@@ -30,6 +30,7 @@ import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
+import { rankear } from '@/lib/search/fuzzy'
 import type { CurrentUser } from '@/lib/auth/get-current-user'
 import type { TurnoActivo } from '@/lib/queries/turnos'
 import {
@@ -220,18 +221,15 @@ function CajaViewInner({
     { ignoreInInputs: false, preventDefault: true, enabled: !hayModalAbierto }
   )
 
-  const productosFiltrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return productos
-
-    return productos.filter((p) => {
-      return (
-        p.nombre.toLowerCase().includes(q) ||
-        p.sku_base.toLowerCase().includes(q) ||
-        p.categoria?.toLowerCase().includes(q)
-      )
-    })
-  }, [productos, busqueda])
+  const productosFiltrados = useMemo(
+    () =>
+      rankear(
+        productos,
+        busqueda,
+        (p) => `${p.nombre} ${p.sku_base} ${p.categoria ?? ''}`
+      ),
+    [productos, busqueda]
+  )
 
   function agregarUnaVariante(
     producto: ProductoCaja,
