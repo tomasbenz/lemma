@@ -1880,7 +1880,7 @@ export type Database = {
       buscar_productos_ids: {
         Args: { p_query: string; p_umbral?: number }
         Returns: {
-          id: string
+          producto_id: string
           sim: number
         }[]
       }

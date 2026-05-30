@@ -58,7 +58,7 @@ async function obtenerIdsBusquedaFuzzy(
   }
 
   // La RPC ya devuelve ids ordenados por similaridad DESC.
-  return (data ?? []).map((r) => r.id as string)
+  return (data ?? []).map((r) => r.producto_id as string)
 }
 
 /**
