@@ -41,6 +41,7 @@ export type AplicarImportResult =
       afectados: number
       totalSolicitados: number
       omitidos: { sku_variante: string; motivo: string }[]
+      operacionId?: string
     }
   | { ok: false; error: string }
 
@@ -158,6 +159,7 @@ export async function aplicarImportProductos(
       afectados?: number
       total_solicitados?: number
       omitidos?: { sku_variante: string; motivo: string }[]
+      operacion_id?: string
     }
 
     if (!r?.ok) {
@@ -171,6 +173,7 @@ export async function aplicarImportProductos(
       afectados: r.afectados ?? 0,
       totalSolicitados: r.total_solicitados ?? cambios.length,
       omitidos: r.omitidos ?? [],
+      operacionId: r.operacion_id,
     }
   } catch (err) {
     console.error('[aplicarImportProductos]', err)

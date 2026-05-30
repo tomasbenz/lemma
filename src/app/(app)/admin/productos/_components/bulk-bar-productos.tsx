@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -59,6 +60,7 @@ function assertNever(x: never): never {
 export function BulkBarProductos({ categorias }: { categorias: string[] }) {
   const cantidad = useSeleccionCantidad()
   const limpiar = useSeleccionStore((s) => s.limpiar)
+  const router = useRouter()
   const [accion, setAccion] = useState<AccionAbierta>(null)
 
   // Fase 2 (precio_pct / ajustar_stock): regla -> preview editable -> aplicar.
@@ -230,6 +232,13 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
         res.omitidos.length > 0
           ? {
               description: `${res.omitidos.length} omitido${res.omitidos.length === 1 ? '' : 's'} (no aplicaba la acción).`,
+              action: res.operacionId
+                ? {
+                    label: 'Ver omitidos',
+                    onClick: () =>
+                      router.push(`/admin/operaciones/${res.operacionId}`),
+                  }
+                : undefined,
             }
           : undefined
       )

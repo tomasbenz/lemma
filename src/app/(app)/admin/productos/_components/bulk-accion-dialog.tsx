@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,6 +49,7 @@ export function BulkAccionDialog({
   children,
 }: Props) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   async function handleConfirm(e: React.MouseEvent) {
     // Evitamos el cierre automático del AlertDialogAction de Radix: queremos
@@ -73,6 +75,13 @@ export function BulkAccionDialog({
         res.omitidos.length > 0
           ? {
               description: `${res.omitidos.length} omitido${res.omitidos.length === 1 ? '' : 's'} (no aplicaba la acción).`,
+              action: res.operacionId
+                ? {
+                    label: 'Ver omitidos',
+                    onClick: () =>
+                      router.push(`/admin/operaciones/${res.operacionId}`),
+                  }
+                : undefined,
             }
           : undefined
       )

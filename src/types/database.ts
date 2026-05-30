@@ -920,6 +920,73 @@ export type Database = {
           },
         ]
       }
+      operaciones_masivas: {
+        Row: {
+          accion: string
+          afectados: number
+          cantidad_omitidos: number
+          creado_at: string
+          empresa_id: string
+          id: string
+          ids_afectados: Json
+          omitidos: Json
+          parametros: Json
+          total_solicitados: number
+          usuario_email_snapshot: string
+          usuario_id: string | null
+        }
+        Insert: {
+          accion: string
+          afectados?: number
+          cantidad_omitidos?: number
+          creado_at?: string
+          empresa_id: string
+          id?: string
+          ids_afectados?: Json
+          omitidos?: Json
+          parametros?: Json
+          total_solicitados?: number
+          usuario_email_snapshot: string
+          usuario_id?: string | null
+        }
+        Update: {
+          accion?: string
+          afectados?: number
+          cantidad_omitidos?: number
+          creado_at?: string
+          empresa_id?: string
+          id?: string
+          ids_afectados?: Json
+          omitidos?: Json
+          parametros?: Json
+          total_solicitados?: number
+          usuario_email_snapshot?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operaciones_masivas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operaciones_masivas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operaciones_masivas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_usuario_empresa_id"
+            referencedColumns: ["usuario_id"]
+          },
+        ]
+      }
       pagos: {
         Row: {
           confirmed_at: string | null

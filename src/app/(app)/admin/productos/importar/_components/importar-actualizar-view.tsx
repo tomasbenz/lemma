@@ -126,7 +126,16 @@ export function ImportarActualizarView() {
       toast.success(
         `${res.afectados} producto${res.afectados === 1 ? '' : 's'} actualizado${res.afectados === 1 ? '' : 's'}`,
         res.omitidos.length > 0
-          ? { description: `${res.omitidos.length} omitido(s).` }
+          ? {
+              description: `${res.omitidos.length} omitido(s).`,
+              action: res.operacionId
+                ? {
+                    label: 'Ver omitidos',
+                    onClick: () =>
+                      router.push(`/admin/operaciones/${res.operacionId}`),
+                  }
+                : undefined,
+            }
           : undefined
       )
       reset()

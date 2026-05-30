@@ -23,6 +23,7 @@ export type BulkActualizarResult =
       afectados: number
       totalSolicitados: number
       omitidos: { id: string; motivo: string }[]
+      operacionId?: string
     }
   | { ok: false; error: string }
 
@@ -171,6 +172,7 @@ export async function bulkActualizarProductos(
       afectados?: number
       total_solicitados?: number
       omitidos?: { id: string; motivo: string }[]
+      operacion_id?: string
     }
 
     if (!r?.ok) {
@@ -184,6 +186,7 @@ export async function bulkActualizarProductos(
       afectados: r.afectados ?? 0,
       totalSolicitados: r.total_solicitados ?? ids.length,
       omitidos: r.omitidos ?? [],
+      operacionId: r.operacion_id,
     }
   } catch (error) {
     console.error('[bulkActualizarProductos] Error inesperado:', error)
