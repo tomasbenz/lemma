@@ -82,7 +82,7 @@ export function AumentoPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {loading
@@ -113,7 +113,7 @@ export function AumentoPreviewDialog({
             <div className="rounded-lg border overflow-hidden">
               <div className="max-h-[50vh] overflow-y-auto no-scrollbar">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur z-10">
+                  <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur">
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Producto</TableHead>
                       <TableHead>Marca</TableHead>
