@@ -285,11 +285,9 @@ export function ProductoForm({
           : `Producto "${data.nombre}" creado correctamente`,
       );
 
-      if (esEdicion) {
-        router.push(`/admin/productos/${result.productoId}`);
-      } else {
-        router.push("/admin/productos");
-      }
+      // Volvemos al listado con ?recien=<id> para destacar el producto recién
+      // guardado (la navegación post-guardado vive acá, no en la server action).
+      router.push(`/admin/productos?recien=${result.productoId}`);
       router.refresh();
     } catch (error) {
       console.error(error);

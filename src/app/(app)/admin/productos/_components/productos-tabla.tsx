@@ -30,6 +30,7 @@ import { ActivoToggle } from './activo-toggle'
 import { FilaCheckbox } from './fila-checkbox'
 import { SeleccionHeaderCheckbox } from './seleccion-header-checkbox'
 import { formatARS } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 export type Orden =
   | 'nombre_asc'
@@ -44,13 +45,22 @@ export function ProductosTabla({
   productos,
   orden,
   onOrdenChange,
+  densidad = 'normal',
+  recienId,
   puedeEditar = true,
 }: {
   productos: ProductoConVariantes[]
   orden: Orden
   onOrdenChange: (orden: Orden) => void
+  densidad?: 'normal' | 'compacta'
+  recienId?: string
   puedeEditar?: boolean
 }) {
+  // Densidad: compacta reduce padding de celda + tamaño de imagen para mostrar
+  // más filas por pantalla. Normal es el default.
+  const celdaPad = densidad === 'compacta' ? 'py-1.5 px-3' : 'py-3 px-4'
+  const imgBox = densidad === 'compacta' ? 'size-9' : 'size-12'
+  const imgIcon = densidad === 'compacta' ? 'size-4' : 'size-5'
   // Derivar columna y dirección activa desde el prop `orden`.
   // Si el orden no matchea ninguna columna sortable (ej: 'fecha_desc'),
   // sortColumn queda vacío → ningún header se marca como activo.
@@ -118,19 +128,30 @@ export function ProductosTabla({
             const cantVariantes = variantesActivas.length
 
             return (
-              <TableRow key={producto.id} className="group hover:bg-muted/30">
+              <TableRow
+                key={producto.id}
+                className={cn(
+                  'group hover:bg-muted/30',
+                  recienId === producto.id && 'animate-pulse-once'
+                )}
+              >
                 {puedeEditar && (
-                  <TableCell className="w-10">
+                  <TableCell className={cn('w-10', celdaPad)}>
                     <FilaCheckbox id={producto.id} />
                   </TableCell>
                 )}
-                <TableCell className="font-medium">
+                <TableCell className={cn('font-medium', celdaPad)}>
                   <Link
                     href={`/admin/productos/${producto.id}`}
                     className="flex items-center gap-3 group-hover:text-foreground"
                   >
                     {producto.imagen_url ? (
-                      <div className="relative size-12 shrink-0 rounded-md overflow-hidden border bg-muted">
+                      <div
+                        className={cn(
+                          'relative shrink-0 rounded-md overflow-hidden border bg-muted',
+                          imgBox
+                        )}
+                      >
                         <Image
                           src={producto.imagen_url}
                           alt={producto.nombre}
@@ -141,8 +162,13 @@ export function ProductosTabla({
                         />
                       </div>
                     ) : (
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Package className="size-5 text-muted-foreground" />
+                      <div
+                        className={cn(
+                          'flex shrink-0 items-center justify-center rounded-md bg-muted',
+                          imgBox
+                        )}
+                      >
+                        <Package className={cn('text-muted-foreground', imgIcon)} />
                       </div>
                     )}
                     <div className="min-w-0">
@@ -170,13 +196,13 @@ export function ProductosTabla({
                   </Link>
                 </TableCell>
 
-                <TableCell>
+                <TableCell className={celdaPad}>
                   <span className="font-numeric text-xs text-muted-foreground">
                     {producto.sku_base}
                   </span>
                 </TableCell>
 
-                <TableCell className="text-right">
+                <TableCell className={cn('text-right', celdaPad)}>
                   {puedeEditar ? (
                     <PrecioCell
                       productoId={producto.id}
@@ -189,7 +215,7 @@ export function ProductosTabla({
                   )}
                 </TableCell>
 
-                <TableCell className="text-center">
+                <TableCell className={cn('text-center', celdaPad)}>
                   {puedeEditar ? (
                     <StockCell
                       productoId={producto.id}
@@ -217,13 +243,13 @@ export function ProductosTabla({
                   )}
                 </TableCell>
 
-                <TableCell className="text-center">
+                <TableCell className={cn('text-center', celdaPad)}>
                   <Badge variant="outline" className="font-numeric text-xs">
                     {cantVariantes}
                   </Badge>
                 </TableCell>
 
-                <TableCell>
+                <TableCell className={celdaPad}>
                   {puedeEditar ? (
                     <ActivoToggle
                       productoId={producto.id}
@@ -241,7 +267,7 @@ export function ProductosTabla({
                 </TableCell>
 
                 <TableCell
-                  className="text-right"
+                  className={cn('text-right', celdaPad)}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <DropdownMenu>

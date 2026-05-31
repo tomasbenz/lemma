@@ -12,6 +12,8 @@ import {
   Package,
   Plus,
   X,
+  AlertCircle,
+  Rows3,
 } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
@@ -71,6 +73,28 @@ function leerVistaServidor(): Vista {
   return 'tabla'
 }
 
+// ============ STORE EXTERNO PARA DENSIDAD EN LOCALSTORAGE ============
+// Mismo patrón que la vista: densidad de fila de la tabla persistida.
+type Densidad = 'normal' | 'compacta'
+
+function suscribirDensidadStorage(callback: () => void): () => void {
+  const handler = (e: StorageEvent) => {
+    if (e.key === 'productos:densidad') callback()
+  }
+  window.addEventListener('storage', handler)
+  return () => window.removeEventListener('storage', handler)
+}
+
+function leerDensidadActual(): Densidad {
+  return localStorage.getItem('productos:densidad') === 'compacta'
+    ? 'compacta'
+    : 'normal'
+}
+
+function leerDensidadServidor(): Densidad {
+  return 'normal'
+}
+
 export function ProductosView({
   productos,
   total,
@@ -79,6 +103,7 @@ export function ProductosView({
   perPage,
   marcas,
   categorias,
+  recienId,
   puedeEditar = true,
 }: {
   productos: ProductoConVariantes[]
@@ -88,6 +113,8 @@ export function ProductosView({
   perPage: number
   marcas: OpcionCatalogo[]
   categorias: OpcionCatalogo[]
+  /** id del producto recién guardado (?recien=) para destacarlo 2s. */
+  recienId?: string
   puedeEditar?: boolean
 }) {
   // ============ VISTA (sincronizada con localStorage) ============
@@ -104,6 +131,23 @@ export function ProductosView({
       new StorageEvent('storage', {
         key: 'productos:vista',
         newValue: nuevaVista,
+      }),
+    )
+  }
+
+  // ============ DENSIDAD (sincronizada con localStorage) ============
+  const densidad = useSyncExternalStore(
+    suscribirDensidadStorage,
+    leerDensidadActual,
+    leerDensidadServidor,
+  )
+
+  const cambiarDensidad = (nueva: Densidad) => {
+    localStorage.setItem('productos:densidad', nueva)
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'productos:densidad',
+        newValue: nueva,
       }),
     )
   }
@@ -186,6 +230,19 @@ export function ProductosView({
   useEffect(() => {
     limpiarSeleccion()
   }, [filterKey, limpiarSeleccion])
+
+  // ============ HIGHLIGHT PRODUCTO RECIÉN GUARDADO ============
+  // El destello dura 2s (CSS). Tras 2.5s sacamos ?recien de la URL para que
+  // no se re-dispare en navegaciones siguientes. (No toca filtros ni selección.)
+  useEffect(() => {
+    if (!recienId) return
+    const t = setTimeout(() => {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('recien')
+      router.replace(`${url.pathname}${url.search}`, { scroll: false })
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [recienId, router])
 
   const paginaIds = productos.map((p) => p.id)
 
@@ -276,6 +333,19 @@ export function ProductosView({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Atajo rápido: stock bajo / sin stock */}
+        <Button
+          variant={stockBajo ? 'default' : 'outline'}
+          onClick={() => updateFilter('stock', stockBajo ? null : 'bajo')}
+          className="gap-2"
+        >
+          <AlertCircle className="size-4" />
+          Sin stock
+          {stockBajo && total > 0 && (
+            <span className="font-numeric tabular-nums">({total})</span>
+          )}
+        </Button>
 
         {/* Filtro por marca */}
         {marcas.length > 0 && (
@@ -404,6 +474,26 @@ export function ProductosView({
           </button>
         </div>
 
+        {/* Toggle densidad (solo en tabla, desktop) */}
+        {vista === 'tabla' && (
+          <Button
+            variant={densidad === 'compacta' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() =>
+              cambiarDensidad(densidad === 'compacta' ? 'normal' : 'compacta')
+            }
+            className="hidden sm:inline-flex"
+            aria-pressed={densidad === 'compacta'}
+            title={
+              densidad === 'compacta'
+                ? 'Densidad compacta activa'
+                : 'Activar densidad compacta'
+            }
+          >
+            <Rows3 className="size-4" />
+          </Button>
+        )}
+
         {/* Export (todos los roles: read-only del catálogo visible) */}
         <ExportarBoton filters={filters} />
       </div>
@@ -466,15 +556,25 @@ export function ProductosView({
               productos={productos}
               orden={ordenActual as Orden}
               onOrdenChange={cambiarOrden}
+              densidad={densidad}
+              recienId={recienId}
               puedeEditar={puedeEditar}
             />
           </div>
           <div className="sm:hidden">
-            <ProductosCards productos={productos} puedeEditar={puedeEditar} />
+            <ProductosCards
+              productos={productos}
+              recienId={recienId}
+              puedeEditar={puedeEditar}
+            />
           </div>
         </>
       ) : (
-        <ProductosCards productos={productos} puedeEditar={puedeEditar} />
+        <ProductosCards
+          productos={productos}
+          recienId={recienId}
+          puedeEditar={puedeEditar}
+        />
       )}
 
       {/* ============ FOOTER: TOTALES + PAGINADOR ============ */}

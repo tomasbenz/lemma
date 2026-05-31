@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { MoreHorizontal, Package } from 'lucide-react'
+import { MoreHorizontal, Package, Barcode } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -21,9 +21,11 @@ import type { ProductoConVariantes } from '@/lib/queries/productos'
 
 export function ProductosCards({
   productos,
+  recienId,
   puedeEditar = true,
 }: {
   productos: ProductoConVariantes[]
+  recienId?: string
   puedeEditar?: boolean
 }) {
   return (
@@ -32,6 +34,7 @@ export function ProductosCards({
         <ProductoCard
           key={producto.id}
           producto={producto}
+          recien={recienId === producto.id}
           puedeEditar={puedeEditar}
         />
       ))}
@@ -41,16 +44,24 @@ export function ProductosCards({
 
 function ProductoCard({
   producto,
+  recien,
   puedeEditar,
 }: {
   producto: ProductoConVariantes
+  recien: boolean
   puedeEditar: boolean
 }) {
+  const variantesActivas = producto.variantes.filter((v) => v.activa)
+  const tieneCodigoBarras = producto.variantes.some(
+    (v) => v.codigo_barras != null
+  )
+
   return (
     <Card
       className={cn(
         'group relative overflow-hidden transition-all hover:border-foreground/20 hover:shadow-elev-2',
-        !producto.activo && 'opacity-60'
+        !producto.activo && 'opacity-60',
+        recien && 'animate-pulse-once'
       )}
     >
       {/* Menú de acciones flotante en esquina */}
@@ -150,6 +161,35 @@ function ProductoCard({
               {producto.sku_base}
             </p>
           </div>
+
+          {/* Indicadores: variantes / código de barras / falta foto */}
+          {(variantesActivas.length > 1 ||
+            tieneCodigoBarras ||
+            !producto.imagen_url) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {variantesActivas.length > 1 && (
+                <span className="flex items-center gap-0.5">
+                  <Package className="size-3" /> {variantesActivas.length} var
+                </span>
+              )}
+              {tieneCodigoBarras && (
+                <span
+                  className="flex items-center gap-0.5"
+                  title="Tiene código de barras"
+                >
+                  <Barcode className="size-3" />
+                </span>
+              )}
+              {!producto.imagen_url && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-dashed text-muted-foreground"
+                >
+                  Sin foto
+                </Badge>
+              )}
+            </div>
+          )}
 
           {/* Stock + precio */}
           <div className="flex items-center justify-between gap-2 pt-2 border-t">

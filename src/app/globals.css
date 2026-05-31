@@ -379,12 +379,23 @@ input[type="number"] {
   .stagger-5 { animation-delay: 300ms; }
   .stagger-6 { animation-delay: 360ms; }
 
+  /* Destello sutil de la fila/card del producto recién editado (2s, una vez).
+     color-mix porque el theme es oklch (no hay componentes hsl de --primary). */
+  @keyframes pulse-once {
+    0%, 100% { background-color: transparent; }
+    30% { background-color: color-mix(in oklch, var(--primary) 10%, transparent); }
+  }
+  .animate-pulse-once {
+    animation: pulse-once 2s ease-in-out;
+  }
+
   /* Respect prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {
     .lift,
     .press,
     .enter-up,
-    .enter-fade {
+    .enter-fade,
+    .animate-pulse-once {
       transition: none !important;
       animation: none !important;
       transform: none !important;

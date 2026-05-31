@@ -26,6 +26,7 @@ type SearchParams = Promise<{
   marca?: string
   categoria?: string
   cat_asignada?: string
+  recien?: string
   page?: string
   per_page?: string
 }>
@@ -90,6 +91,7 @@ async function ProductosListWrapper({
     marca?: string
     categoria?: string
     cat_asignada?: string
+    recien?: string
     page?: string
     per_page?: string
   }
@@ -150,6 +152,7 @@ async function ProductosListWrapper({
       perPage={perPage}
       marcas={marcas}
       categorias={categorias}
+      recienId={searchParams.recien}
       puedeEditar={puedeEditar}
     />
   )
