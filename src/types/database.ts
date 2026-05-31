@@ -2093,7 +2093,12 @@ export type Database = {
         Returns: Json
       }
       productos_bulk_precio_individual: {
-        Args: { p_cambios: Json; p_usuario_id: string }
+        Args: {
+          p_cambios: Json
+          p_usuario_id: string
+          p_motivo?: string
+          p_accion?: string
+        }
         Returns: Json
       }
       productos_bulk_stock: {
@@ -2108,16 +2113,6 @@ export type Database = {
       }
       productos_bulk_stock_individual: {
         Args: { p_cambios: Json; p_motivo: string; p_usuario_id: string }
-        Returns: Json
-      }
-      aumentar_precios_por_categoria: {
-        Args: {
-          p_usuario_id: string
-          p_marca_id?: string
-          p_ajustes?: Json
-          p_redondeo?: string
-          p_motivo?: string
-        }
         Returns: Json
       }
       productos_bulk_update: {
