@@ -8,7 +8,10 @@
 // los trigramas con espacios no aparecen en la versión continua del producto
 // y la similitud cae bajo el umbral.
 
-const UMBRAL_DEFAULT = 0.3
+// Umbral de similitud de trigramas. Alineado con el DEFAULT de la RPC
+// buscar_productos_ids (migración 020): bajo (0.12) para tolerar queries
+// cortas/desordenadas tras eliminar espacios en la normalización (019).
+const UMBRAL_DEFAULT = 0.12
 
 /** lower + quita tildes + elimina todos los espacios. */
 export function normalizar(s: string): string {
