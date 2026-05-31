@@ -1,7 +1,10 @@
 // Helpers de presentación para operaciones masivas (listado + detalle).
 // Puros, sin React ni datos.
 
+import { LABELS_REDONDEO, esEstrategiaRedondeo } from '@/lib/precios/redondeo'
+
 export const ACCION_LABEL: Record<string, string> = {
+  aumento_categoria: 'Aumento por categoría',
   precio_pct: 'Precio (%)',
   precio_fijo: 'Precio fijo',
   cambiar_marca: 'Marca',
@@ -32,6 +35,16 @@ export function renderParametros(accion: string, parametros: unknown): string {
     p.motivo ? `${base} · motivo: ${String(p.motivo)}` : base
 
   switch (accion) {
+    case 'aumento_categoria': {
+      const ajustes = Array.isArray(p.ajustes) ? p.ajustes : []
+      const nCat = ajustes.length
+      const red =
+        typeof p.redondeo === 'string' && esEstrategiaRedondeo(p.redondeo)
+          ? LABELS_REDONDEO[p.redondeo]
+          : 'sin redondeo'
+      const base = `Aumento en ${nCat} ${nCat === 1 ? 'categoría' : 'categorías'} · redondeo ${red}`
+      return conMotivo(base)
+    }
     case 'precio_pct': {
       const pct = Number(p.pct ?? 0)
       return pct >= 0 ? `Subir ${pct}%` : `Bajar ${Math.abs(pct)}%`

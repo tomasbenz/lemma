@@ -2110,6 +2110,16 @@ export type Database = {
         Args: { p_cambios: Json; p_motivo: string; p_usuario_id: string }
         Returns: Json
       }
+      aumentar_precios_por_categoria: {
+        Args: {
+          p_usuario_id: string
+          p_marca_id?: string
+          p_ajustes?: Json
+          p_redondeo?: string
+          p_motivo?: string
+        }
+        Returns: Json
+      }
       productos_bulk_update: {
         Args: {
           p_accion: string
