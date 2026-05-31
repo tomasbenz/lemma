@@ -158,6 +158,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
       .from('productos_con_stock_total')
       .select('id')
       .in('id', rankedIds)
+      // Defense in depth: además de RLS, filtra por empresa explícitamente.
+      .eq('empresa_id', user.empresa_id)
     if (soloActivos) filtroQuery = filtroQuery.eq('activo', true)
     if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
     if (marcaId) filtroQuery = filtroQuery.eq('marca_id', marcaId)
@@ -182,6 +184,7 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
       .from('productos_con_stock_total')
       .select('*')
       .in('id', pageIds)
+      .eq('empresa_id', user.empresa_id)
     if (rowsError) {
       console.error('[listarProductos] Error rows fuzzy:', rowsError.message)
       throw new Error('Error al listar productos')
@@ -197,9 +200,14 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
   }
 
   // ===== Rama sin búsqueda: filtros + orden + paginación en la vista =====
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return { productos: [], total: 0 }
+
   let aggQuery = supabase
     .from('productos_con_stock_total')
     .select('*', { count: 'exact' })
+    // Defense in depth: además de RLS, filtra por empresa explícitamente.
+    .eq('empresa_id', user.empresa_id)
 
   if (soloActivos) aggQuery = aggQuery.eq('activo', true)
 
@@ -311,6 +319,8 @@ export async function listarProductoIdsPorFiltro(
       .from('productos_con_stock_total')
       .select('id')
       .in('id', rankedIds)
+      // Defense in depth: además de RLS, filtra por empresa explícitamente.
+      .eq('empresa_id', user.empresa_id)
     if (soloActivos) q = q.eq('activo', true)
     if (stockBajo) q = q.eq('tiene_stock_bajo', true)
     if (marcaId) q = q.eq('marca_id', marcaId)
@@ -335,7 +345,14 @@ export async function listarProductoIdsPorFiltro(
   }
 
   // ===== Rama sin búsqueda =====
-  let query = supabase.from('productos_con_stock_total').select('id')
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return { ids: [], excedeCap: false }
+
+  let query = supabase
+    .from('productos_con_stock_total')
+    .select('id')
+    // Defense in depth: además de RLS, filtra por empresa explícitamente.
+    .eq('empresa_id', user.empresa_id)
 
   if (soloActivos) query = query.eq('activo', true)
   if (stockBajo) query = query.eq('tiene_stock_bajo', true)
