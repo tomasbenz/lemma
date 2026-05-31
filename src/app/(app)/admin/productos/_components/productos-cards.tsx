@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatARS } from '@/lib/format'
-import { StockBadge, bandaStockClase } from './stock-badge'
+import { StockBadge } from './stock-badge'
 import { cn } from '@/lib/utils'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
 
@@ -56,36 +56,14 @@ function ProductoCard({
     (v) => v.codigo_barras != null
   )
 
-  // Banda de stock + tinte tenue para "sin stock".
-  const banda = bandaStockClase(producto.stock_total ?? 0, producto.track_stock)
-  const cardTinte = banda === 'bg-destructive' ? 'bg-destructive/5' : ''
-
-  // Producto "incompleto": le faltan 2+ de foto / marca / categoría.
-  const faltantes: string[] = []
-  if (!producto.imagen_url) faltantes.push('foto')
-  if (!producto.marca_id) faltantes.push('marca')
-  if (!producto.categoria_id) faltantes.push('categoría')
-  const incompleto = faltantes.length >= 2
-
   return (
     <Card
       className={cn(
         'group relative overflow-hidden transition-all hover:border-foreground/20 hover:shadow-elev-2',
-        cardTinte,
         !producto.activo && 'opacity-60',
         recien && 'animate-pulse-once'
       )}
     >
-      {/* Banda de stock (priority lane) al borde izquierdo */}
-      {banda && (
-        <div
-          className={cn(
-            'absolute left-0 top-0 bottom-0 w-1 z-10',
-            banda
-          )}
-        />
-      )}
-
       {/* Menú de acciones flotante en esquina */}
       <div className="absolute right-2 top-2 z-10">
         <DropdownMenu>
@@ -126,7 +104,7 @@ function ProductoCard({
       <Link href={`/admin/productos/${producto.id}`} className="block">
         {/* Imagen cuadrada o placeholder */}
         {producto.imagen_url ? (
-          <div className="relative aspect-[3/4] w-full bg-muted border-b">
+          <div className="relative aspect-square w-full bg-muted border-b">
             <Image
               src={producto.imagen_url}
               alt={producto.nombre}
@@ -145,7 +123,7 @@ function ProductoCard({
             )}
           </div>
         ) : (
-          <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-muted border-b">
+          <div className="relative flex aspect-square w-full items-center justify-center bg-muted border-b">
             <Package className="size-12 text-muted-foreground/50" />
             {!producto.activo && (
               <Badge
@@ -165,17 +143,10 @@ function ProductoCard({
               {producto.nombre}
             </h3>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {producto.marca_nombre ? (
-                <Badge variant="secondary" className="text-xs">
+              {producto.marca_nombre && (
+                <span className="text-xs text-muted-foreground truncate">
                   {producto.marca_nombre}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] border-dashed text-muted-foreground"
-                >
-                  Sin marca
-                </Badge>
+                </span>
               )}
               {!producto.categoria_id && (
                 <Badge
@@ -183,15 +154,6 @@ function ProductoCard({
                   className="text-[10px] border-dashed text-muted-foreground"
                 >
                   Sin categoría
-                </Badge>
-              )}
-              {incompleto && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] border-warning/40 bg-warning/10 text-warning"
-                  title={`Faltan: ${faltantes.join(', ')}`}
-                >
-                  Incompleto
                 </Badge>
               )}
             </div>

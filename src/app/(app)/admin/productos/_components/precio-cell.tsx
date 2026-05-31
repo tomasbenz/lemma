@@ -11,15 +11,9 @@ import { actualizarPrecio } from '../_actions/actualizar-precio'
 type Props = {
   productoId: string
   precioInicial: number
-  /** Clase extra para el texto del precio (modo display, no edición). */
-  displayClassName?: string
 }
 
-export function PrecioCell({
-  productoId,
-  precioInicial,
-  displayClassName,
-}: Props) {
+export function PrecioCell({ productoId, precioInicial }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [value, setValue] = useState(precioInicial.toString())
   const [displayPrecio, setDisplayPrecio] = useState(precioInicial)
@@ -111,9 +105,7 @@ export function PrecioCell({
       )}
       title="Click para editar precio"
     >
-      <span className={cn('font-numeric tabular-nums', displayClassName)}>
-        {formatARS(displayPrecio)}
-      </span>
+      <span className="font-numeric tabular-nums">{formatARS(displayPrecio)}</span>
       <Pencil className="size-3 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-colors" />
     </button>
   )

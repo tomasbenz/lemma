@@ -24,7 +24,7 @@ import {
 import { SortableHeader } from '@/components/app/sortable-header'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
 import { StockCell, type VarianteStock } from './stock-cell'
-import { StockBadge, bandaStockClase } from './stock-badge'
+import { StockBadge } from './stock-badge'
 import { PrecioCell } from './precio-cell'
 import { ActivoToggle } from './activo-toggle'
 import { FilaCheckbox } from './fila-checkbox'
@@ -95,8 +95,6 @@ export function ProductosTabla({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
-            {/* Banda de stock (priority lane) */}
-            <TableHead className="w-1 p-0" />
             {puedeEditar && (
               <TableHead className="w-10">
                 <SeleccionHeaderCheckbox paginaIds={paginaIds} />
@@ -129,31 +127,14 @@ export function ProductosTabla({
             const variantesActivas = producto.variantes.filter((v) => v.activa)
             const cantVariantes = variantesActivas.length
 
-            // Banda de stock + tinte tenue de fila para "sin stock".
-            const banda = bandaStockClase(
-              producto.stock_total ?? 0,
-              producto.track_stock
-            )
-            const filaTinte = banda === 'bg-destructive' ? 'bg-destructive/5' : ''
-
-            // Producto "incompleto": le faltan 2+ de foto / marca / categoría.
-            const faltantes: string[] = []
-            if (!producto.imagen_url) faltantes.push('foto')
-            if (!producto.marca_id) faltantes.push('marca')
-            if (!producto.categoria_id) faltantes.push('categoría')
-            const incompleto = faltantes.length >= 2
-
             return (
               <TableRow
                 key={producto.id}
                 className={cn(
                   'group hover:bg-muted/30',
-                  filaTinte,
                   recienId === producto.id && 'animate-pulse-once'
                 )}
               >
-                {/* Banda de stock (priority lane) al borde izquierdo */}
-                <TableCell className={cn('w-1 p-0', banda)} />
                 {puedeEditar && (
                   <TableCell className={cn('w-10', celdaPad)}>
                     <FilaCheckbox id={producto.id} />
@@ -194,38 +175,20 @@ export function ProductosTabla({
                       <div className="truncate font-medium text-sm">
                         {producto.nombre}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        {producto.marca_nombre ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {producto.marca_nombre}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] border-dashed text-muted-foreground shrink-0"
-                          >
-                            Sin marca
-                          </Badge>
-                        )}
-                        {producto.categoria_nombre ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {(producto.marca_nombre || producto.categoria_nombre) && (
                           <span className="text-xs text-muted-foreground truncate">
-                            {producto.categoria_nombre}
+                            {[producto.marca_nombre, producto.categoria_nombre]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </span>
-                        ) : (
+                        )}
+                        {!producto.categoria_id && (
                           <Badge
                             variant="outline"
                             className="text-[10px] border-dashed text-muted-foreground shrink-0"
                           >
                             Sin categoría
-                          </Badge>
-                        )}
-                        {incompleto && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] border-warning/40 bg-warning/10 text-warning shrink-0"
-                            title={`Faltan: ${faltantes.join(', ')}`}
-                          >
-                            Incompleto
                           </Badge>
                         )}
                       </div>
@@ -244,10 +207,9 @@ export function ProductosTabla({
                     <PrecioCell
                       productoId={producto.id}
                       precioInicial={producto.precio_neto}
-                      displayClassName="font-bold text-base"
                     />
                   ) : (
-                    <span className="font-numeric font-bold text-base tabular-nums">
+                    <span className="font-numeric tabular-nums">
                       {formatARS(producto.precio_neto)}
                     </span>
                   )}
