@@ -10,6 +10,7 @@ type Filtros = {
   stockBajo?: boolean
   marcaId?: string
   categoriaId?: string
+  categoriaAsignada?: 'sin' | 'con'
 }
 
 export type SeleccionarTodosResult =

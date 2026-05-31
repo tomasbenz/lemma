@@ -48,6 +48,7 @@ export type ProductosFilters = {
   stock: string // '' | 'bajo'
   marca: string // '' | marca_id
   categoria: string // '' | categoria_id
+  categoriaAsignada: string // '' | 'sin' | 'con'
 }
 
 // ============ STORE EXTERNO PARA VISTA EN LOCALSTORAGE ============
@@ -181,7 +182,7 @@ export function ProductosView({
   // productos (q/estado/stock/marca/categoria). NO al cambiar orden/page/per_page:
   // esos no invalidan los ids, así la selección persiste cross-página.
   const limpiarSeleccion = useSeleccionStore((s) => s.limpiar)
-  const filterKey = `${filters.q}|${filters.estado}|${filters.stock}|${filters.marca}|${filters.categoria}`
+  const filterKey = `${filters.q}|${filters.estado}|${filters.stock}|${filters.marca}|${filters.categoria}|${filters.categoriaAsignada}`
   useEffect(() => {
     limpiarSeleccion()
   }, [filterKey, limpiarSeleccion])
@@ -236,7 +237,9 @@ export function ProductosView({
             <Button variant="outline" className="gap-2">
               <Filter className="size-4" />
               Filtros
-              {(mostrarSoloActivos === false || stockBajo) && (
+              {(mostrarSoloActivos === false ||
+                stockBajo ||
+                filters.categoriaAsignada) && (
                 <span className="ml-1 size-2 rounded-full bg-primary" />
               )}
             </Button>
@@ -257,6 +260,20 @@ export function ProductosView({
             >
               Solo stock bajo (&lt; 5)
             </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Categoría asignada</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={filters.categoriaAsignada}
+              onValueChange={(v) => updateFilter('cat_asignada', v || null)}
+            >
+              <DropdownMenuRadioItem value="">Todas</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="sin">
+                Sin categoría
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="con">
+                Con categoría
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 

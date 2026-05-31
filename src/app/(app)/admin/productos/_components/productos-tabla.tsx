@@ -24,12 +24,12 @@ import {
 import { SortableHeader } from '@/components/app/sortable-header'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
 import { StockCell, type VarianteStock } from './stock-cell'
+import { StockBadge } from './stock-badge'
 import { PrecioCell } from './precio-cell'
 import { ActivoToggle } from './activo-toggle'
 import { FilaCheckbox } from './fila-checkbox'
 import { SeleccionHeaderCheckbox } from './seleccion-header-checkbox'
-import { formatARS, formatNumber } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { formatARS } from '@/lib/format'
 
 export type Orden =
   | 'nombre_asc'
@@ -130,30 +130,42 @@ export function ProductosTabla({
                     className="flex items-center gap-3 group-hover:text-foreground"
                   >
                     {producto.imagen_url ? (
-                      <div className="relative size-9 shrink-0 rounded-md overflow-hidden border bg-muted">
+                      <div className="relative size-12 shrink-0 rounded-md overflow-hidden border bg-muted">
                         <Image
                           src={producto.imagen_url}
                           alt={producto.nombre}
                           fill
-                          sizes="36px"
+                          sizes="48px"
                           className="object-cover"
                           unoptimized
                         />
                       </div>
                     ) : (
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Package className="size-4 text-muted-foreground" />
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Package className="size-5 text-muted-foreground" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="truncate">{producto.nombre}</div>
-                      {(producto.marca_nombre || producto.categoria_nombre) && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {[producto.marca_nombre, producto.categoria_nombre]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </div>
-                      )}
+                      <div className="truncate font-medium text-sm">
+                        {producto.nombre}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {(producto.marca_nombre || producto.categoria_nombre) && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {[producto.marca_nombre, producto.categoria_nombre]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        )}
+                        {!producto.categoria_id && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-dashed text-muted-foreground shrink-0"
+                          >
+                            Sin categoría
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </Link>
                 </TableCell>
@@ -198,10 +210,9 @@ export function ProductosTabla({
                       )}
                     />
                   ) : (
-                    <StockReadonly
+                    <StockBadge
+                      stock={producto.stock_total ?? 0}
                       trackStock={producto.track_stock}
-                      total={producto.stock_total ?? 0}
-                      cantVariantes={variantesActivas.length}
                     />
                   )}
                 </TableCell>
@@ -266,34 +277,5 @@ export function ProductosTabla({
         </TableBody>
       </Table>
     </div>
-  )
-}
-
-function StockReadonly({
-  trackStock,
-  total,
-  cantVariantes,
-}: {
-  trackStock: boolean
-  total: number
-  cantVariantes: number
-}) {
-  if (!trackStock) {
-    return <span className="text-muted-foreground text-sm">—</span>
-  }
-  const colorClass = cn(
-    'font-numeric tabular-nums',
-    total === 0 && 'text-destructive font-semibold',
-    total > 0 && total <= 5 && 'text-amber-600 font-medium'
-  )
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={colorClass}>{formatNumber(total)}</span>
-      {cantVariantes > 1 && (
-        <span className="text-xs text-muted-foreground">
-          ({cantVariantes})
-        </span>
-      )}
-    </span>
   )
 }

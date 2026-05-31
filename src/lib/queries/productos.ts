@@ -23,6 +23,13 @@ export type ListarProductosOptions = {
   marcaId?: string
   /** Filtro por categoría real (FK productos.categoria_id). */
   categoriaId?: string
+  /**
+   * Filtro por estado de categorización:
+   *  - 'sin' → solo productos con categoria_id NULL (falta categorizar)
+   *  - 'con' → solo productos con categoría asignada
+   *  - undefined/'' → todos
+   */
+  categoriaAsignada?: 'sin' | 'con'
   orden?: 'nombre_asc' | 'nombre_desc' | 'fecha_desc' | 'stock_asc' | 'stock_desc'
   limit?: number
   offset?: number
@@ -129,6 +136,7 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     stockBajo = false,
     marcaId = '',
     categoriaId = '',
+    categoriaAsignada,
     orden = 'nombre_asc',
     limit = 50,
     offset = 0,
@@ -154,6 +162,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
     if (marcaId) filtroQuery = filtroQuery.eq('marca_id', marcaId)
     if (categoriaId) filtroQuery = filtroQuery.eq('categoria_id', categoriaId)
+    if (categoriaAsignada === 'sin') filtroQuery = filtroQuery.is('categoria_id', null)
+    else if (categoriaAsignada === 'con') filtroQuery = filtroQuery.not('categoria_id', 'is', null)
 
     const { data: survData, error: survError } = await filtroQuery
     if (survError) {
@@ -197,6 +207,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
 
   if (marcaId) aggQuery = aggQuery.eq('marca_id', marcaId)
   if (categoriaId) aggQuery = aggQuery.eq('categoria_id', categoriaId)
+  if (categoriaAsignada === 'sin') aggQuery = aggQuery.is('categoria_id', null)
+  else if (categoriaAsignada === 'con') aggQuery = aggQuery.not('categoria_id', 'is', null)
 
   // Orden
   switch (orden) {
@@ -266,7 +278,12 @@ const BULK_CAP = 1000
 export async function listarProductoIdsPorFiltro(
   options: Pick<
     ListarProductosOptions,
-    'busqueda' | 'soloActivos' | 'stockBajo' | 'marcaId' | 'categoriaId'
+    | 'busqueda'
+    | 'soloActivos'
+    | 'stockBajo'
+    | 'marcaId'
+    | 'categoriaId'
+    | 'categoriaAsignada'
   > = {}
 ): Promise<ListarProductoIdsResult> {
   const supabase = await createClient()
@@ -277,6 +294,7 @@ export async function listarProductoIdsPorFiltro(
     stockBajo = false,
     marcaId = '',
     categoriaId = '',
+    categoriaAsignada,
   } = options
 
   // ===== Rama con búsqueda: fuzzy por RPC =====
@@ -297,6 +315,8 @@ export async function listarProductoIdsPorFiltro(
     if (stockBajo) q = q.eq('tiene_stock_bajo', true)
     if (marcaId) q = q.eq('marca_id', marcaId)
     if (categoriaId) q = q.eq('categoria_id', categoriaId)
+    if (categoriaAsignada === 'sin') q = q.is('categoria_id', null)
+    else if (categoriaAsignada === 'con') q = q.not('categoria_id', 'is', null)
 
     const { data, error } = await q
     if (error) {
@@ -321,6 +341,8 @@ export async function listarProductoIdsPorFiltro(
   if (stockBajo) query = query.eq('tiene_stock_bajo', true)
   if (marcaId) query = query.eq('marca_id', marcaId)
   if (categoriaId) query = query.eq('categoria_id', categoriaId)
+  if (categoriaAsignada === 'sin') query = query.is('categoria_id', null)
+  else if (categoriaAsignada === 'con') query = query.not('categoria_id', 'is', null)
 
   // Traemos 1001 para detectar el exceso de cap sin un count aparte.
   query = query.limit(BULK_CAP + 1)
@@ -432,6 +454,7 @@ export async function exportarProductosFilas(
     stockBajo = false,
     marcaId = '',
     categoriaId = '',
+    categoriaAsignada,
   } = options
 
   // Búsqueda fuzzy (si hay): restringe a los ids que matchean. El export se
@@ -451,6 +474,8 @@ export async function exportarProductosFilas(
   if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
   if (marcaId) agg = agg.eq('marca_id', marcaId)
   if (categoriaId) agg = agg.eq('categoria_id', categoriaId)
+  if (categoriaAsignada === 'sin') agg = agg.is('categoria_id', null)
+  else if (categoriaAsignada === 'con') agg = agg.not('categoria_id', 'is', null)
   if (rankedIds) agg = agg.in('id', rankedIds)
 
   agg = agg.order('nombre', { ascending: true })

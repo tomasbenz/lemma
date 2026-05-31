@@ -14,7 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { formatARS, formatNumber } from '@/lib/format'
+import { formatARS } from '@/lib/format'
+import { StockBadge } from './stock-badge'
+import { cn } from '@/lib/utils'
 import type { ProductoConVariantes } from '@/lib/queries/productos'
 
 export function ProductosCards({
@@ -44,12 +46,13 @@ function ProductoCard({
   producto: ProductoConVariantes
   puedeEditar: boolean
 }) {
-  const variantesActivas = producto.variantes.filter((v) => v.activa)
-  const hayStockBajo = variantesActivas.some((v) => v.stock < 5)
-  const sinStock = producto.stock_total === 0
-
   return (
-    <Card className="group relative overflow-hidden transition-colors hover:border-foreground/20">
+    <Card
+      className={cn(
+        'group relative overflow-hidden transition-all hover:border-foreground/20 hover:shadow-elev-2',
+        !producto.activo && 'opacity-60'
+      )}
+    >
       {/* Menú de acciones flotante en esquina */}
       <div className="absolute right-2 top-2 z-10">
         <DropdownMenu>
@@ -88,9 +91,9 @@ function ProductoCard({
       </div>
 
       <Link href={`/admin/productos/${producto.id}`} className="block">
-        {/* Imagen o placeholder full-width */}
+        {/* Imagen cuadrada o placeholder */}
         {producto.imagen_url ? (
-          <div className="relative aspect-[4/3] w-full bg-muted border-b">
+          <div className="relative aspect-square w-full bg-muted border-b">
             <Image
               src={producto.imagen_url}
               alt={producto.nombre}
@@ -99,78 +102,64 @@ function ProductoCard({
               className="object-cover"
               unoptimized
             />
+            {!producto.activo && (
+              <Badge
+                variant="outline"
+                className="absolute left-2 top-2 bg-background/80 backdrop-blur text-xs"
+              >
+                Inactivo
+              </Badge>
+            )}
           </div>
         ) : (
-          <div className="flex aspect-[4/3] w-full items-center justify-center bg-muted border-b">
+          <div className="relative flex aspect-square w-full items-center justify-center bg-muted border-b">
             <Package className="size-12 text-muted-foreground/50" />
+            {!producto.activo && (
+              <Badge
+                variant="outline"
+                className="absolute left-2 top-2 bg-background/80 backdrop-blur text-xs"
+              >
+                Inactivo
+              </Badge>
+            )}
           </div>
         )}
 
-        <CardContent className="p-4 space-y-3">
-          {/* Header: nombre + SKU */}
-          <div className="min-w-0">
-            <h3 className="font-medium truncate">{producto.nombre}</h3>
+        <CardContent className="p-3 space-y-2">
+          {/* Nombre + marca + categoría */}
+          <div className="min-w-0 space-y-1">
+            <h3 className="text-base font-semibold leading-tight line-clamp-2">
+              {producto.nombre}
+            </h3>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {producto.marca_nombre && (
+                <span className="text-xs text-muted-foreground truncate">
+                  {producto.marca_nombre}
+                </span>
+              )}
+              {!producto.categoria_id && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-dashed text-muted-foreground"
+                >
+                  Sin categoría
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground font-numeric truncate">
               {producto.sku_base}
             </p>
           </div>
 
-          {/* Métricas */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-            <div>
-              <p className="text-xs text-muted-foreground">Precio</p>
-              <p className="font-numeric font-medium">
-                {formatARS(producto.precio_neto)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Stock</p>
-              {producto.track_stock ? (
-                <p
-                  className={
-                    sinStock
-                      ? 'text-destructive font-numeric font-medium'
-                      : hayStockBajo
-                        ? 'text-warning font-numeric font-medium'
-                        : 'font-numeric font-medium'
-                  }
-                >
-                  {formatNumber(producto.stock_total)}
-                  {hayStockBajo && !sinStock && (
-                    <span className="text-[10px] ml-1 text-warning">bajo</span>
-                  )}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  sin track
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Footer: variantes + estado */}
-          <div className="flex items-center justify-between pt-2 border-t">
-            <div className="flex items-center gap-1.5">
-              <Badge variant="outline" className="font-numeric text-xs">
-                {variantesActivas.length}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {variantesActivas.length === 1 ? 'variante' : 'variantes'}
-              </span>
-            </div>
-            {producto.activo ? (
-              <Badge
-                variant="outline"
-                className="text-xs border-success/40 text-success bg-success/10"
-              >
-                <span className="size-1.5 rounded-full bg-success mr-1" />
-                Activo
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-xs">
-                Inactivo
-              </Badge>
-            )}
+          {/* Stock + precio */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+            <StockBadge
+              stock={producto.stock_total ?? 0}
+              trackStock={producto.track_stock}
+            />
+            <span className="font-numeric text-lg font-bold">
+              {formatARS(producto.precio_neto)}
+            </span>
           </div>
         </CardContent>
       </Link>

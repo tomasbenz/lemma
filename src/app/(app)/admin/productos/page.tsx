@@ -25,6 +25,7 @@ type SearchParams = Promise<{
   stock?: string
   marca?: string
   categoria?: string
+  cat_asignada?: string
   page?: string
   per_page?: string
 }>
@@ -88,6 +89,7 @@ async function ProductosListWrapper({
     stock?: string
     marca?: string
     categoria?: string
+    cat_asignada?: string
     page?: string
     per_page?: string
   }
@@ -100,6 +102,11 @@ async function ProductosListWrapper({
     stock: searchParams.stock ?? '',
     marca: searchParams.marca ?? '',
     categoria: searchParams.categoria ?? '',
+    // '' | 'sin' | 'con'
+    categoriaAsignada:
+      searchParams.cat_asignada === 'sin' || searchParams.cat_asignada === 'con'
+        ? searchParams.cat_asignada
+        : '',
   }
 
   // Parsear y validar per_page (clamp a opciones permitidas)
@@ -120,6 +127,8 @@ async function ProductosListWrapper({
       stockBajo: filters.stock === 'bajo',
       marcaId: filters.marca,
       categoriaId: filters.categoria,
+      categoriaAsignada:
+        (filters.categoriaAsignada || undefined) as 'sin' | 'con' | undefined,
       orden: filters.orden as
         | 'nombre_asc'
         | 'nombre_desc'

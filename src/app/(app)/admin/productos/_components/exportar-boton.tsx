@@ -22,6 +22,8 @@ export function ExportarBoton({ filters }: { filters: ProductosFilters }) {
         stockBajo: filters.stock === 'bajo',
         marcaId: filters.marca || undefined,
         categoriaId: filters.categoria || undefined,
+        categoriaAsignada:
+          (filters.categoriaAsignada || undefined) as 'sin' | 'con' | undefined,
       })
       if (!res.ok) {
         toast.error(res.error)
