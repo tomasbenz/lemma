@@ -61,7 +61,8 @@
       "Bash(awk '/CREATE OR REPLACE FUNCTION public.reporte_ventas_agregado/,/^\\\\$function\\\\$;/' supabase/migrations/00000000000003_rpcs_helpers_y_triggers.sql)",
       "Bash(grep -nE 'export function|}: \\\\{|: \\\\{$|titulo|columnas|filas|ganancia|data:' __TRACKED_VAR__.tsx)",
       "Bash(grep -rn \"11111111-1111-1111-1111-111111111111\" src/ supabase/)",
-      "Bash(grep -rn \"empresa_id\\\\|empresaId\" src/lib/auth/ src/lib/supabase/)"
+      "Bash(grep -rn \"empresa_id\\\\|empresaId\" src/lib/auth/ src/lib/supabase/)",
+      "Bash(awk '/CREATE OR REPLACE FUNCTION public.normalizar_busqueda/,/\\\\$function\\\\$;/' supabase/migrations/00000000000011_busqueda_fuzzy_productos.sql)"
     ]
   }
 }

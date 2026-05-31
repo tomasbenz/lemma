@@ -1,22 +1,23 @@
 // Búsqueda fuzzy en el cliente (caja offline, editores de pedido/venta).
 // Puro, sin dependencias. Espeja la normalización del lado server
-// (normalizar_busqueda en SQL): lower + sin tildes + espacios colapsados.
+// (normalizar_busqueda en SQL): lower + sin tildes + sin espacios.
 //
-// Tolera typos, tildes, mayúsculas y espacios sobrantes. El caso real
-// "Kangaro o o o o" → "Kangaroo" se resuelve por el colapso de espacios
-// (fast path includes) o por similitud de trigramas (fallback).
+// Tolera typos, tildes, mayúsculas y espacios sobrantes. Los espacios se
+// ELIMINAN (no se colapsan): así "abro ch a do ra" → "abrochadora" matchea
+// "abrochadorakangaro...", y "Kangaro o o o o" → "kangarooooo". Sin esto,
+// los trigramas con espacios no aparecen en la versión continua del producto
+// y la similitud cae bajo el umbral.
 
 const UMBRAL_DEFAULT = 0.3
 
-/** lower + quita tildes + colapsa espacios. */
+/** lower + quita tildes + elimina todos los espacios. */
 export function normalizar(s: string): string {
   if (!s) return ''
   return s
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
+    .replace(/\s+/g, '')
 }
 
 /** Set de trigramas con padding, sobre el string ya normalizado. */

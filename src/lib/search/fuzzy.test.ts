@@ -11,16 +11,30 @@ test('normalizar — lowercase', () => {
 })
 
 test('normalizar — quita tildes', () => {
-  assert.equal(normalizar('Librería Ñandú'), 'libreria nandu')
+  assert.equal(normalizar('Librería Ñandú'), 'librerianandu')
 })
 
-test('normalizar — colapsa espacios múltiples', () => {
-  assert.equal(normalizar('Kangaro   o  o'), 'kangaro o o')
+test('normalizar — elimina espacios múltiples', () => {
+  assert.equal(normalizar('Kangaro   o  o'), 'kangarooo')
 })
 
 test('normalizar — string vacío / falsy', () => {
   assert.equal(normalizar(''), '')
   assert.equal(normalizar('   '), '')
+})
+
+// Casos del fix 019: los espacios se ELIMINAN, no se colapsan, para que
+// queries tipeadas con espacios sueltos matcheen la versión continua.
+test('normalizar — elimina espacios sueltos (caso abrochadora)', () => {
+  assert.equal(normalizar('abro ch a do ra'), 'abrochadora')
+})
+
+test('normalizar — palabras con espacios se unen', () => {
+  assert.equal(normalizar('Hola Mundo'), 'holamundo')
+})
+
+test('normalizar — espacios repetidos entre letras (caso Kangaroo)', () => {
+  assert.equal(normalizar('Kangaro o o o o'), 'kangarooooo')
 })
 
 // ============================================================
