@@ -2,6 +2,37 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 
+export type NivelStock = 'sin' | 'bajo' | 'normal' | 'sin-track'
+
+/**
+ * Clasifica el stock en niveles. Fuente única de verdad reusada por el
+ * StockBadge y la banda de color de la fila/card (no duplicar el umbral).
+ *  - 0       → 'sin'
+ *  - 1-4     → 'bajo'
+ *  - 5+      → 'normal'
+ *  - !track  → 'sin-track'
+ */
+export function nivelStock(stock: number, trackStock = true): NivelStock {
+  if (!trackStock) return 'sin-track'
+  if (stock === 0) return 'sin'
+  if (stock < 5) return 'bajo'
+  return 'normal'
+}
+
+/**
+ * Clase de color para la banda vertical de stock al borde de la fila/card.
+ * null = sin banda (stock normal o sin track).
+ */
+export function bandaStockClase(
+  stock: number,
+  trackStock = true
+): string | null {
+  const nivel = nivelStock(stock, trackStock)
+  if (nivel === 'sin') return 'bg-destructive'
+  if (nivel === 'bajo') return 'bg-warning'
+  return null
+}
+
 /**
  * Badge de stock con color de estado para escaneo rápido del listado.
  *
@@ -24,7 +55,9 @@ export function StockBadge({
   trackStock?: boolean
   className?: string
 }) {
-  if (!trackStock) {
+  const nivel = nivelStock(stock, trackStock)
+
+  if (nivel === 'sin-track') {
     return (
       <Badge variant="outline" className={cn('text-muted-foreground', className)}>
         Sin control
@@ -32,7 +65,7 @@ export function StockBadge({
     )
   }
 
-  if (stock === 0) {
+  if (nivel === 'sin') {
     return (
       <Badge
         variant="outline"
@@ -46,7 +79,7 @@ export function StockBadge({
     )
   }
 
-  if (stock < 5) {
+  if (nivel === 'bajo') {
     return (
       <Badge
         variant="outline"
