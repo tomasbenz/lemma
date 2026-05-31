@@ -96,7 +96,8 @@ export async function crearProducto(
         nombre: data.nombre.trim(),
         sku_base: data.sku_base,
         precio_neto: data.precio_neto,
-        categoria: data.categoria?.trim() || null,
+        marca_id: data.marca_id || null,
+        categoria_id: data.categoria_id || null,
         descripcion_corta: data.descripcion_corta?.trim() || null,
         imagen_url: data.imagen_url ?? null,
         track_stock: data.track_stock,
@@ -255,12 +256,15 @@ export async function verificarSkuDisponible(
 }
 
 /**
- * Helper: auto-genera un SKU sugerido basado en la categoría.
+ * Helper: auto-genera un SKU sugerido basado en un texto (hoy: el nombre de la
+ * marca seleccionada). Toma las primeras 3 letras como prefijo y busca el
+ * siguiente correlativo. Mantiene el comportamiento previo (antes el texto era
+ * la "categoría" que en realidad era la marca).
  */
 export async function sugerirSkuBase(
-  categoria: string
+  base: string
 ): Promise<string | null> {
-  if (!categoria || categoria.trim().length < 3) {
+  if (!base || base.trim().length < 3) {
     return null
   }
 
@@ -268,7 +272,7 @@ export async function sugerirSkuBase(
     const user = await getCurrentUser()
     if (!user) return null
 
-    const prefijo = categoria
+    const prefijo = base
       .trim()
       .toUpperCase()
       .replace(/[^A-Z]/g, '')

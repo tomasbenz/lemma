@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth/get-current-user";
 export type ProductoImport = {
   sku_base: string;
   nombre: string;
+  marca: string | null;
   categoria: string | null;
   precio_neto: number;
 };
@@ -54,6 +55,7 @@ export async function importarProductos(
     const productosLimpios = productos.map((p) => ({
       sku_base: String(p.sku_base ?? "").trim(),
       nombre: String(p.nombre ?? "").trim(),
+      marca: p.marca ? String(p.marca).trim() : null,
       categoria: p.categoria ? String(p.categoria).trim() : null,
       precio_neto:
         typeof p.precio_neto === "number" && !isNaN(p.precio_neto)

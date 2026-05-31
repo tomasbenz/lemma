@@ -20,6 +20,7 @@ function filaExport(over: Partial<ProductoFilaExport> = {}): ProductoFilaExport 
     sku_variante: over.sku_variante ?? 'BASE-1-DEFAULT',
     nombre: over.nombre ?? 'Producto',
     atributos: over.atributos ?? '',
+    marca: over.marca === undefined ? 'KANGARO' : over.marca,
     categoria: over.categoria === undefined ? 'PAPELERIA' : over.categoria,
     precio_neto: over.precio_neto ?? 100,
     stock: over.stock ?? 10,
@@ -56,6 +57,7 @@ function actual(over: Partial<EstadoActualImport> = {}): EstadoActualImport {
     sku_base: over.sku_base ?? 'BASE-1',
     nombre: over.nombre ?? 'Producto',
     precio_neto: over.precio_neto ?? 100,
+    marca: over.marca === undefined ? 'KANGARO' : over.marca,
     categoria: over.categoria === undefined ? 'PAPELERIA' : over.categoria,
     activo: over.activo ?? true,
     stock: over.stock ?? 10,
@@ -156,6 +158,36 @@ test('objetosAFilas — categoria vacía → null', () => {
   if (res.ok) assert.equal(res.filas[0].categoria, null)
 })
 
+test('objetosAFilas — marca vacía → null', () => {
+  const res = objetosAFilas([row({ marca: '' })])
+  assert.equal(res.ok, true)
+  if (res.ok) assert.equal(res.filas[0].marca, null)
+})
+
+// Parser tolerante: Excel viejo SIN columna `marca`. La columna `categoria`
+// (que históricamente era la marca) se reinterpreta como marca y la categoría
+// real queda en null.
+test('objetosAFilas — formato viejo sin columna marca → categoria se interpreta como marca', () => {
+  const filaVieja: Record<string, unknown> = {
+    sku_base: 'BASE-1',
+    sku_variante: 'BASE-1-DEFAULT',
+    nombre: 'Producto',
+    atributos: '',
+    precio_neto: 100,
+    categoria: 'KANGARO',
+    stock: 10,
+    activo_producto: 'Sí',
+    activa_variante: 'Sí',
+    codigo_barras: '779000111',
+  }
+  const res = objetosAFilas([filaVieja])
+  assert.equal(res.ok, true)
+  if (res.ok) {
+    assert.equal(res.filas[0].marca, 'KANGARO')
+    assert.equal(res.filas[0].categoria, null)
+  }
+})
+
 // ============================================================
 // objetosAFilas — conflicto product-level
 // ============================================================
@@ -195,6 +227,7 @@ function parseada(over: Partial<FilaParseada> = {}): FilaParseada {
     sku_base: over.sku_base ?? 'BASE-1',
     nombre: over.nombre ?? 'Producto',
     precio_neto: over.precio_neto ?? 100,
+    marca: over.marca === undefined ? 'KANGARO' : over.marca,
     categoria: over.categoria === undefined ? 'PAPELERIA' : over.categoria,
     activo: over.activo ?? true,
     stock: over.stock ?? 10,
@@ -242,4 +275,13 @@ test('construirDiff — categoria a null cuenta como cambio', () => {
   )
   assert.equal(cambios.length, 1)
   assert.equal(cambios[0].categoria, null)
+})
+
+test('construirDiff — cambio de marca se detecta', () => {
+  const { cambios } = construirDiff(
+    [parseada({ marca: 'PILOT' })],
+    [actual({ marca: 'KANGARO' })]
+  )
+  assert.equal(cambios.length, 1)
+  assert.equal(cambios[0].marca, 'PILOT')
 })

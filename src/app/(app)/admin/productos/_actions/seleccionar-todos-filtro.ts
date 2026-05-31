@@ -8,7 +8,8 @@ type Filtros = {
   busqueda?: string
   soloActivos?: boolean
   stockBajo?: boolean
-  categoria?: string
+  marcaId?: string
+  categoriaId?: string
 }
 
 export type SeleccionarTodosResult =

@@ -38,7 +38,26 @@
       "Bash(rm supabase/scripts/*.sql)",
       "Bash(echo \"tsc-exit=$?\")",
       "Bash(node *)",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "PowerShell(npx tsc --noEmit)",
+      "PowerShell(npx eslint \"src/app/\\(app\\)/admin/productos/nuevo/_components/producto-form.tsx\" \"src/lib/validations/producto.ts\")",
+      "PowerShell(npm test *)",
+      "PowerShell(npx eslint \"src/app/\\(app\\)/admin/productos/nuevo/_components/producto-form.tsx\" \"src/lib/validations/producto.ts\" \"src/app/\\(app\\)/admin/productos/[id]/editar/page.tsx\" \"src/app/\\(app\\)/admin/productos/[id]/editar/_actions/actualizar-producto.ts\")",
+      "PowerShell(npx eslint \"src/lib/validations/producto.ts\" \"src/app/\\(app\\)/admin/productos/nuevo/_components/producto-form.tsx\" \"src/app/\\(app\\)/admin/productos/nuevo/_actions/crear-producto.ts\" \"src/app/\\(app\\)/admin/productos/[id]/editar/_actions/actualizar-producto.ts\" \"src/app/\\(app\\)/admin/productos/[id]/editar/page.tsx\")",
+      "PowerShell(npx eslint \"src/app/\\(app\\)/admin/productos/_components/scanner-modal.tsx\" \"src/app/\\(app\\)/admin/productos/nuevo/_components/producto-form.tsx\")",
+      "PowerShell(npx eslint \"src/app/\\(app\\)/admin/productos/nuevo/_components/producto-form.tsx\")",
+      "PowerShell(npx eslint \"src/app/\\(app\\)/admin/productos/[id]/editar/page.tsx\")",
+      "Bash(grep -c '\\\\$function\\\\$' supabase/migrations/00000000000008_productos_bulk_individual.sql)",
+      "Bash(grep -c '^\\\\s*\\\\$\\\\$\\\\|DO \\\\$\\\\$' supabase/migrations/00000000000008_productos_bulk_individual.sql)",
+      "Bash(grep -o '\\\\$function\\\\$' supabase/migrations/00000000000010_operaciones_masivas.sql)",
+      "Read(//tmp/**)",
+      "Bash(perl -i -pe 's/\\\\.replace\\\\\\(\\\\/\\\\[\\\\x{0300}-\\\\x{036f}\\\\]\\\\/g, .{2}\\\\\\)/.replace\\(\\\\/[\\\\\\\\u0300-\\\\\\\\u036f]\\\\/g, \"\"\\)/' src/lib/search/fuzzy.ts)",
+      "Bash(grep -o '\\\\$function\\\\$' supabase/migrations/00000000000012_busqueda_fuzzy_umbral.sql)",
+      "Bash(echo \"EXIT_TSC=$?\")",
+      "Bash(echo \"EXIT_ESLINT=$?\")",
+      "Bash(echo \"EXIT_TEST=$?\")",
+      "Bash(echo \"EXIT_BUILD=$?\")",
+      "Bash(grep -o '\\\\$function\\\\$' supabase/migrations/00000000000014_rediseño_catalogo_marca_categoria.sql)"
     ]
   }
 }

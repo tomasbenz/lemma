@@ -173,7 +173,8 @@ export function EditarVentaView({
       rankear(
         productos,
         busqueda,
-        (p) => `${p.nombre} ${p.sku_base} ${p.categoria ?? ''}`
+        (p) =>
+          `${p.nombre} ${p.sku_base} ${p.marca_nombre ?? ''} ${p.categoria_nombre ?? ''}`
       ),
     [productos, busqueda]
   )

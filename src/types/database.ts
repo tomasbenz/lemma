@@ -818,6 +818,47 @@ export type Database = {
           },
         ]
       }
+      marcas: {
+        Row: {
+          activo: boolean
+          created_at: string
+          empresa_id: string
+          id: string
+          nombre: string
+          nombre_normalizado: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nombre: string
+          nombre_normalizado: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nombre?: string
+          nombre_normalizado?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marcas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medios_pago_venta: {
         Row: {
           created_at: string
@@ -1065,7 +1106,7 @@ export type Database = {
           activo: boolean
           alicuota_iva: number
           busqueda_normalizada: string | null
-          categoria: string | null
+          categoria_id: string | null
           created_at: string
           descripcion_corta: string | null
           descripcion_larga: string | null
@@ -1074,6 +1115,7 @@ export type Database = {
           id: string
           imagen_url: string | null
           imagenes: string[]
+          marca_id: string | null
           meta_descripcion: string | null
           meta_titulo: string | null
           nombre: string
@@ -1089,7 +1131,7 @@ export type Database = {
           activo?: boolean
           alicuota_iva?: number
           busqueda_normalizada?: string | null
-          categoria?: string | null
+          categoria_id?: string | null
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null
@@ -1098,6 +1140,7 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           imagenes?: string[]
+          marca_id?: string | null
           meta_descripcion?: string | null
           meta_titulo?: string | null
           nombre: string
@@ -1113,7 +1156,7 @@ export type Database = {
           activo?: boolean
           alicuota_iva?: number
           busqueda_normalizada?: string | null
-          categoria?: string | null
+          categoria_id?: string | null
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null
@@ -1122,6 +1165,7 @@ export type Database = {
           id?: string
           imagen_url?: string | null
           imagenes?: string[]
+          marca_id?: string | null
           meta_descripcion?: string | null
           meta_titulo?: string | null
           nombre?: string
@@ -1135,10 +1179,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "productos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_categorias"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "productos_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas"
             referencedColumns: ["id"]
           },
         ]
@@ -1565,12 +1623,15 @@ export type Database = {
       productos_con_stock_total: {
         Row: {
           activo: boolean | null
-          categoria: string | null
+          categoria_id: string | null
+          categoria_nombre: string | null
           created_at: string | null
           descripcion_corta: string | null
           empresa_id: string | null
           id: string | null
           imagen_url: string | null
+          marca_id: string | null
+          marca_nombre: string | null
           nombre: string | null
           precio_neto: number | null
           sku_base: string | null
@@ -1578,42 +1639,26 @@ export type Database = {
           tiene_stock_bajo: boolean | null
           track_stock: boolean | null
         }
-        Insert: {
-          activo?: boolean | null
-          categoria?: string | null
-          created_at?: string | null
-          descripcion_corta?: string | null
-          empresa_id?: string | null
-          id?: string | null
-          imagen_url?: string | null
-          nombre?: string | null
-          precio_neto?: number | null
-          sku_base?: string | null
-          stock_total?: never
-          tiene_stock_bajo?: never
-          track_stock?: boolean | null
-        }
-        Update: {
-          activo?: boolean | null
-          categoria?: string | null
-          created_at?: string | null
-          descripcion_corta?: string | null
-          empresa_id?: string | null
-          id?: string | null
-          imagen_url?: string | null
-          nombre?: string | null
-          precio_neto?: number | null
-          sku_base?: string | null
-          stock_total?: never
-          tiene_stock_bajo?: never
-          track_stock?: boolean | null
-        }
         Relationships: [
+          {
+            foreignKeyName: "productos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_categorias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "productos_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas"
             referencedColumns: ["id"]
           },
         ]

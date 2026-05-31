@@ -4,6 +4,7 @@
 export const ACCION_LABEL: Record<string, string> = {
   precio_pct: 'Precio (%)',
   precio_fijo: 'Precio fijo',
+  cambiar_marca: 'Marca',
   cambiar_categoria: 'Categoría',
   cambiar_activo: 'Activar / Desactivar',
   stock_sumar: 'Sumar stock',
@@ -37,10 +38,17 @@ export function renderParametros(accion: string, parametros: unknown): string {
     }
     case 'precio_fijo':
       return `Fijar precio a $${p.precio ?? '—'}`
+    case 'cambiar_marca':
+      return p.marca_nombre
+        ? `Cambiar marca a "${String(p.marca_nombre)}"`
+        : 'Quitar marca (sin marca)'
     case 'cambiar_categoria':
-      return p.categoria
-        ? `Cambiar categoría a "${String(p.categoria)}"`
-        : 'Quitar categoría (sin categoría)'
+      // Registros nuevos guardan categoria_nombre; los históricos (pre-rediseño)
+      // guardaban el texto libre en `categoria` — se respeta el snapshot.
+      if (p.categoria_nombre)
+        return `Cambiar categoría a "${String(p.categoria_nombre)}"`
+      if (p.categoria) return `Cambiar categoría a "${String(p.categoria)}"`
+      return 'Quitar categoría (sin categoría)'
     case 'cambiar_activo':
       return p.activo ? 'Activar productos' : 'Desactivar productos'
     case 'stock_sumar':

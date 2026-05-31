@@ -7,10 +7,20 @@ import { createClient } from '@/lib/supabase/server'
 
 /**
  * El refactor de Lemma eliminó las tablas `catalogo_colores` y `catalogo_talles`.
- * Solo queda `catalogo_categorias`. Los atributos de variante (color, formato,
- * gramaje, etc.) viven ahora en `categoria_atributos` con CRUD propio.
+ * Quedan `catalogo_categorias` y `marcas`, que comparten la misma forma
+ * (id, empresa_id, nombre, nombre_normalizado, orden, activo) y por eso
+ * comparten todo este CRUD genérico. Los atributos de variante (color, formato,
+ * gramaje, etc.) viven en `categoria_atributos` con CRUD propio.
  */
-type Tabla = 'catalogo_categorias'
+type Tabla = 'catalogo_categorias' | 'marcas'
+
+// Whitelist de tablas operables. Aunque la firma tipada ya restringe a
+// estos dos valores, validamos en runtime porque `tabla` llega del cliente.
+const TABLAS_VALIDAS: readonly Tabla[] = ['catalogo_categorias', 'marcas']
+
+function esTablaValida(t: string): t is Tabla {
+  return (TABLAS_VALIDAS as readonly string[]).includes(t)
+}
 
 type SimpleResult =
   | { ok: true }
@@ -60,6 +70,10 @@ export async function crearCatalogoItem(
   try {
     const authz = await authzAdmin()
     if (!authz.ok) return { ok: false, error: authz.error }
+
+    if (!esTablaValida(input.tabla)) {
+      return { ok: false, error: 'Tabla inválida' }
+    }
 
     const nombre = input.nombre.trim()
     if (!nombre || nombre.length < 1 || nombre.length > 50) {
@@ -145,6 +159,10 @@ export async function editarCatalogoItem(
     const authz = await authzAdmin()
     if (!authz.ok) return { ok: false, error: authz.error }
 
+    if (!esTablaValida(input.tabla)) {
+      return { ok: false, error: 'Tabla inválida' }
+    }
+
     const nombre = input.nombre.trim()
     if (!nombre || nombre.length < 1 || nombre.length > 50) {
       return {
@@ -221,6 +239,10 @@ export async function setCatalogoItemActivo(
   try {
     const authz = await authzAdmin()
     if (!authz.ok) return { ok: false, error: authz.error }
+
+    if (!esTablaValida(tabla)) {
+      return { ok: false, error: 'Tabla inválida' }
+    }
 
     const supabase = await createClient()
 

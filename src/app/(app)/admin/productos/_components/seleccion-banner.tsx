@@ -45,7 +45,8 @@ export function SeleccionBanner({
         busqueda: filters.q,
         soloActivos: filters.estado !== 'todos',
         stockBajo: filters.stock === 'bajo',
-        categoria: filters.categoria || undefined,
+        marcaId: filters.marca || undefined,
+        categoriaId: filters.categoria || undefined,
       })
       if (res.ok) agregarMuchos(res.ids)
     } finally {

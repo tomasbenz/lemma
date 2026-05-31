@@ -80,7 +80,8 @@ export function CommandPalette({ rol }: Props) {
         return (
           p.nombre.toLowerCase().includes(q) ||
           p.sku_base.toLowerCase().includes(q) ||
-          p.categoria?.toLowerCase().includes(q)
+          p.marca_nombre?.toLowerCase().includes(q) ||
+          p.categoria_nombre?.toLowerCase().includes(q)
         )
       })
       .slice(0, 8)
@@ -180,7 +181,7 @@ export function CommandPalette({ rol }: Props) {
                     }
                     titulo={p.nombre}
                     subtitulo={p.sku_base}
-                    meta={p.categoria ?? undefined}
+                    meta={p.marca_nombre ?? undefined}
                   />
                 ))}
               </Grupo>

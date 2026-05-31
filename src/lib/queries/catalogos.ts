@@ -42,8 +42,28 @@ export async function listarCategorias(): Promise<CatalogoItem[]> {
 }
 
 /**
- * Lista TODAS las categorías (activas + inactivas) con count de uso.
- * Cuenta productos.categoria coincidente por nombre.
+ * Lista marcas activas (id + nombre + nombre_normalizado). Usar en el form de
+ * producto (combobox de marca con búsqueda fuzzy y alta al vuelo).
+ */
+export async function listarMarcas(): Promise<CatalogoItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('marcas')
+    .select('id, nombre, nombre_normalizado, orden')
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    console.error('[listarMarcas] Error:', error.message)
+    return []
+  }
+  return data ?? []
+}
+
+/**
+ * Lista TODAS las categorías reales (activas + inactivas) con count de uso.
+ * Cuenta productos enlazados por FK (productos.categoria_id = catalogo_categorias.id).
  */
 export async function listarCategoriasAdmin(): Promise<CatalogoItemAdmin[]> {
   const supabase = await createClient()
@@ -65,10 +85,48 @@ export async function listarCategoriasAdmin(): Promise<CatalogoItemAdmin[]> {
       const { count } = await supabase
         .from('productos')
         .select('id', { count: 'exact', head: true })
-        .eq('categoria', c.nombre)
+        .eq('categoria_id', c.id)
         .eq('activo', true)
       return {
         ...c,
+        hex: null,
+        uso_count: count ?? 0,
+      }
+    })
+  )
+
+  return items
+}
+
+/**
+ * Lista TODAS las marcas (activas + inactivas) con count de uso.
+ * Cuenta productos enlazados por FK (productos.marca_id = marcas.id).
+ * Misma forma que listarCategoriasAdmin para reusar la UI de CRUD.
+ */
+export async function listarMarcasAdmin(): Promise<CatalogoItemAdmin[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('marcas')
+    .select('id, nombre, nombre_normalizado, orden, activo')
+    .order('activo', { ascending: false })
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    console.error('[listarMarcasAdmin] Error:', error.message)
+    return []
+  }
+
+  const items: CatalogoItemAdmin[] = await Promise.all(
+    (data ?? []).map(async (m) => {
+      const { count } = await supabase
+        .from('productos')
+        .select('id', { count: 'exact', head: true })
+        .eq('marca_id', m.id)
+        .eq('activo', true)
+      return {
+        ...m,
         hex: null,
         uso_count: count ?? 0,
       }

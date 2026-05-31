@@ -93,9 +93,17 @@ export const productoSchema = z
       .min(0, 'No puede ser negativo')
       .max(99999999, 'Precio demasiado alto'),
 
-    categoria: z
+    // FK a marcas. '' del select se trata como "sin marca" (null) en la action.
+    marca_id: z
       .string()
-      .max(50, 'Máximo 50 caracteres')
+      .uuid('Marca inválida')
+      .optional()
+      .or(z.literal('')),
+
+    // FK a catalogo_categorias (categoría real). '' => "sin categoría" (null).
+    categoria_id: z
+      .string()
+      .uuid('Categoría inválida')
       .optional()
       .or(z.literal('')),
 

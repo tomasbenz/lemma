@@ -11,6 +11,7 @@ const CAP = 1000
 export type CambioImport = {
   sku_variante: string
   precio_neto?: number
+  marca?: string | null
   categoria?: string | null
   activo?: boolean
   stock?: number
@@ -24,6 +25,7 @@ export type EstadoActualImport = {
   sku_base: string
   nombre: string
   precio_neto: number
+  marca: string | null
   categoria: string | null
   activo: boolean
   stock: number
@@ -68,10 +70,12 @@ export async function previewImportProductos(
     }
 
     const supabase = await createClient()
+    // El producto ya no tiene `categoria` text: tiene marca_id/categoria_id.
+    // Traemos los NOMBRES vía embed para mostrarlos en el diff del preview.
     const { data, error } = await supabase
       .from('variantes')
       .select(
-        'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, categoria, activo)'
+        'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, activo, marca:marcas(nombre), categoria:catalogo_categorias(nombre))'
       )
       .in('sku_variante', skus)
       .eq('empresa_id', user.empresa_id)
@@ -82,19 +86,22 @@ export async function previewImportProductos(
     }
 
     const actuales: EstadoActualImport[] = (data ?? []).map((v) => {
+      // Los embeds llegan como objeto ({ nombre } | null) según el to-one FK.
       const p = v.productos as unknown as {
         sku_base: string
         nombre: string
         precio_neto: number
-        categoria: string | null
         activo: boolean
+        marca: { nombre: string } | null
+        categoria: { nombre: string } | null
       }
       return {
         sku_variante: v.sku_variante ?? '',
         sku_base: p.sku_base,
         nombre: p.nombre,
         precio_neto: p.precio_neto,
-        categoria: p.categoria ?? null,
+        marca: p.marca?.nombre ?? null,
+        categoria: p.categoria?.nombre ?? null,
         activo: p.activo,
         stock: v.stock,
         activa: v.activa,

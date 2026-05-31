@@ -26,11 +26,12 @@ import {
 } from "../../_actions/importar-productos";
 
 // =============================================================================
-// La plantilla EXIGE estas 4 columnas con estos nombres exactos
+// La plantilla EXIGE estas 5 columnas con estos nombres exactos
 // =============================================================================
 const COLUMNAS_REQUERIDAS = [
   "sku_base",
   "nombre",
+  "marca",
   "categoria",
   "precio_neto",
 ] as const;
@@ -38,6 +39,7 @@ const COLUMNAS_REQUERIDAS = [
 type FilaPlantilla = {
   sku_base: string;
   nombre: string;
+  marca: string;
   categoria: string;
   precio_neto: number;
 };
@@ -61,11 +63,17 @@ type ResultadoErrores = {
 // =============================================================================
 function descargarPlantilla() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ["sku_base", "nombre", "categoria", "precio_neto"],
-    ["ABC123", "Remera básica blanca", "REMERAS", 15000],
-    ["ABC124", "Pantalón cargo negro", "PANTALONES", 28000],
+    ["sku_base", "nombre", "marca", "categoria", "precio_neto"],
+    ["ABC123", "Lápiz negro HB", "Faber-Castell", "Escritura", 1500],
+    ["ABC124", "Cuaderno tapa dura A4", "Rivadavia", "Cuadernos", 8000],
   ]);
-  ws["!cols"] = [{ wch: 14 }, { wch: 45 }, { wch: 28 }, { wch: 14 }];
+  ws["!cols"] = [
+    { wch: 14 },
+    { wch: 45 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 14 },
+  ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Productos");
   XLSX.writeFile(wb, "plantilla-productos.xlsx");
@@ -131,6 +139,7 @@ export function ImportarProductosView() {
 
         const sku = String(row.sku_base ?? "").trim();
         const nombre = String(row.nombre ?? "").trim();
+        const marca = String(row.marca ?? "").trim();
         const categoria = String(row.categoria ?? "").trim();
         const precioRaw = row.precio_neto;
 
@@ -163,6 +172,7 @@ export function ImportarProductosView() {
           fila: numFila,
           sku_base: sku,
           nombre,
+          marca,
           categoria,
           precio_neto: precio,
         });
@@ -231,6 +241,7 @@ export function ImportarProductosView() {
     const productos: ProductoImport[] = filas.map((f) => ({
       sku_base: f.sku_base,
       nombre: f.nombre,
+      marca: f.marca || null,
       categoria: f.categoria || null,
       precio_neto: f.precio_neto,
     }));
@@ -491,7 +502,7 @@ export function ImportarProductosView() {
                   ¿Cómo armar el archivo?
                 </p>
                 <p>
-                  El archivo tiene que tener exactamente estas 4 columnas, con
+                  El archivo tiene que tener exactamente estas 5 columnas, con
                   estos nombres:
                 </p>
                 <ul className="list-disc list-inside space-y-0.5 pl-1">
@@ -509,9 +520,17 @@ export function ImportarProductosView() {
                   </li>
                   <li>
                     <code className="text-[11px] bg-muted px-1 rounded">
+                      marca
+                    </code>{" "}
+                    — marca del producto (si no existe se crea; puede quedar
+                    vacía)
+                  </li>
+                  <li>
+                    <code className="text-[11px] bg-muted px-1 rounded">
                       categoria
                     </code>{" "}
-                    — categoría agrupadora (puede quedar vacía)
+                    — categoría real del catálogo (si no existe se ignora; puede
+                    quedar vacía)
                   </li>
                   <li>
                     <code className="text-[11px] bg-muted px-1 rounded">
@@ -583,6 +602,7 @@ export function ImportarProductosView() {
                   <tr>
                     <th className="text-left p-2 font-medium">SKU</th>
                     <th className="text-left p-2 font-medium">Nombre</th>
+                    <th className="text-left p-2 font-medium">Marca</th>
                     <th className="text-left p-2 font-medium">Categoría</th>
                     <th className="text-right p-2 font-medium">Precio neto</th>
                   </tr>
@@ -592,6 +612,9 @@ export function ImportarProductosView() {
                     <tr key={f.fila} className="border-t hover:bg-muted/20">
                       <td className="p-2 font-numeric">{f.sku_base}</td>
                       <td className="p-2">{f.nombre}</td>
+                      <td className="p-2 text-muted-foreground">
+                        {f.marca || "—"}
+                      </td>
                       <td className="p-2 text-muted-foreground">
                         {f.categoria || "—"}
                       </td>

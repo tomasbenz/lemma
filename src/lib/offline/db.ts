@@ -64,6 +64,16 @@ class LemmaDB extends Dexie {
       meta: 'key',
       colaPedidos: 'localId, estado, created_at',
     })
+
+    // Versión 3: rediseño catálogo — `categoria` (text libre = marca) dejó de
+    //   existir en ProductoCaja; ahora hay marca_nombre + categoria_nombre. La
+    //   búsqueda en caja filtra en memoria (no por índice Dexie), así que el
+    //   índice de productos no necesita las nuevas columnas. Se quita `categoria`
+    //   del índice. Al próximo sync de catálogo los productos se re-guardan con
+    //   el shape nuevo.
+    this.version(3).stores({
+      productos: 'id, sku_base, nombre',
+    })
   }
 }
 

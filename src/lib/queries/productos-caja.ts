@@ -20,8 +20,12 @@ export type VarianteCaja = {
 
 export type ProductoCaja = Pick<
   ProductoRow,
-  'id' | 'nombre' | 'sku_base' | 'precio_neto' | 'categoria' | 'imagen_url' | 'track_stock'
+  'id' | 'nombre' | 'sku_base' | 'precio_neto' | 'imagen_url' | 'track_stock'
 > & {
+  /** Nombre de la marca (vía JOIN). Reemplaza el viejo `categoria` text. */
+  marca_nombre: string | null
+  /** Nombre de la categoría real (vía JOIN). null hasta que Samu la asigne. */
+  categoria_nombre: string | null
   variantes: VarianteCaja[]
   stock_total: number
 }
@@ -44,9 +48,10 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
       nombre,
       sku_base,
       precio_neto,
-      categoria,
       imagen_url,
       track_stock,
+      marca:marcas(nombre),
+      categoria:catalogo_categorias(nombre),
       variantes(id, atributos, sku_variante, stock, activa, codigo_barras)
     `
     )
@@ -78,12 +83,21 @@ export async function listarProductosCaja(): Promise<ProductoCaja[]> {
 
     const stock_total = variantesActivas.reduce((sum, v) => sum + v.stock, 0)
 
+    // Embeds to-one: supabase puede tiparlos como objeto o como array de 1.
+    const nombreEmbed = (raw: unknown): string | null => {
+      const obj = Array.isArray(raw) ? raw[0] ?? null : raw
+      return obj && typeof obj === 'object' && 'nombre' in obj
+        ? ((obj as { nombre: string }).nombre ?? null)
+        : null
+    }
+
     return {
       id: p.id,
       nombre: p.nombre,
       sku_base: p.sku_base,
       precio_neto: p.precio_neto,
-      categoria: p.categoria,
+      marca_nombre: nombreEmbed(p.marca),
+      categoria_nombre: nombreEmbed(p.categoria),
       imagen_url: p.imagen_url,
       track_stock: p.track_stock,
       variantes: variantesActivas,

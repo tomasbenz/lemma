@@ -20,7 +20,8 @@ export function ExportarBoton({ filters }: { filters: ProductosFilters }) {
         busqueda: filters.q,
         soloActivos: filters.estado !== 'todos',
         stockBajo: filters.stock === 'bajo',
-        categoria: filters.categoria || undefined,
+        marcaId: filters.marca || undefined,
+        categoriaId: filters.categoria || undefined,
       })
       if (!res.ok) {
         toast.error(res.error)

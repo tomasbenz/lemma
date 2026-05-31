@@ -5,7 +5,11 @@ import { Plus } from 'lucide-react'
 
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { puedeEditarCatalogo } from '@/lib/auth/permisos'
-import { listarProductos, listarCategorias } from '@/lib/queries/productos'
+import {
+  listarProductos,
+  listarMarcas,
+  listarCategoriasReales,
+} from '@/lib/queries/productos'
 import { Button } from '@/components/ui/button'
 import { ProductosView } from './_components/productos-view'
 import { ProductosListSkeleton } from './_components/productos-list-skeleton'
@@ -19,6 +23,7 @@ type SearchParams = Promise<{
   orden?: string
   estado?: string
   stock?: string
+  marca?: string
   categoria?: string
   page?: string
   per_page?: string
@@ -81,6 +86,7 @@ async function ProductosListWrapper({
     orden?: string
     estado?: string
     stock?: string
+    marca?: string
     categoria?: string
     page?: string
     per_page?: string
@@ -92,6 +98,7 @@ async function ProductosListWrapper({
     orden: searchParams.orden ?? 'nombre_asc',
     estado: searchParams.estado ?? 'activos',
     stock: searchParams.stock ?? '',
+    marca: searchParams.marca ?? '',
     categoria: searchParams.categoria ?? '',
   }
 
@@ -106,12 +113,13 @@ async function ProductosListWrapper({
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1
 
-  const [{ productos, total }, categorias] = await Promise.all([
+  const [{ productos, total }, marcas, categorias] = await Promise.all([
     listarProductos({
       busqueda: filters.q,
       soloActivos: filters.estado !== 'todos',
       stockBajo: filters.stock === 'bajo',
-      categoria: filters.categoria,
+      marcaId: filters.marca,
+      categoriaId: filters.categoria,
       orden: filters.orden as
         | 'nombre_asc'
         | 'nombre_desc'
@@ -120,7 +128,8 @@ async function ProductosListWrapper({
       limit: perPage,
       offset: (currentPage - 1) * perPage,
     }),
-    listarCategorias(),
+    listarMarcas(),
+    listarCategoriasReales(),
   ])
 
   return (
@@ -130,6 +139,7 @@ async function ProductosListWrapper({
       filters={filters}
       currentPage={currentPage}
       perPage={perPage}
+      marcas={marcas}
       categorias={categorias}
       puedeEditar={puedeEditar}
     />

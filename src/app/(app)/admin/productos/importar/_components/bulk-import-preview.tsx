@@ -17,6 +17,7 @@ import type { FilaDiff, ColumnaDiff } from '../../_lib/excel-productos'
 
 const LABELS: Record<ColumnaDiff, string> = {
   precio_neto: 'Precio',
+  marca: 'Marca',
   categoria: 'Categoría',
   stock: 'Stock',
   activo: 'Activo prod.',
@@ -26,6 +27,7 @@ const LABELS: Record<ColumnaDiff, string> = {
 
 const ORDEN: ColumnaDiff[] = [
   'precio_neto',
+  'marca',
   'categoria',
   'stock',
   'activo',

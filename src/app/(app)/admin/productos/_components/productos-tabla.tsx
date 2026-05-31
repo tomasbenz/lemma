@@ -147,9 +147,11 @@ export function ProductosTabla({
                     )}
                     <div className="min-w-0">
                       <div className="truncate">{producto.nombre}</div>
-                      {producto.categoria && (
+                      {(producto.marca_nombre || producto.categoria_nombre) && (
                         <div className="text-xs text-muted-foreground truncate">
-                          {producto.categoria}
+                          {[producto.marca_nombre, producto.categoria_nombre]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </div>
                       )}
                     </div>

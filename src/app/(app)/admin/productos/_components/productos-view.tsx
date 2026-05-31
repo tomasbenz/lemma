@@ -35,7 +35,7 @@ import { BulkBarProductos } from './bulk-bar-productos'
 import { ExportarBoton } from './exportar-boton'
 import { useSeleccionStore } from '../_state/seleccion-productos-store'
 import { cn } from '@/lib/utils'
-import type { ProductoConVariantes } from '@/lib/queries/productos'
+import type { ProductoConVariantes, OpcionCatalogo } from '@/lib/queries/productos'
 
 type Vista = 'tabla' | 'cards'
 
@@ -46,7 +46,8 @@ export type ProductosFilters = {
   orden: string
   estado: string // 'activos' | 'todos'
   stock: string // '' | 'bajo'
-  categoria: string // '' | nombre exacto
+  marca: string // '' | marca_id
+  categoria: string // '' | categoria_id
 }
 
 // ============ STORE EXTERNO PARA VISTA EN LOCALSTORAGE ============
@@ -75,6 +76,7 @@ export function ProductosView({
   filters,
   currentPage,
   perPage,
+  marcas,
   categorias,
   puedeEditar = true,
 }: {
@@ -83,7 +85,8 @@ export function ProductosView({
   filters: ProductosFilters
   currentPage: number
   perPage: number
-  categorias: string[]
+  marcas: OpcionCatalogo[]
+  categorias: OpcionCatalogo[]
   puedeEditar?: boolean
 }) {
   // ============ VISTA (sincronizada con localStorage) ============
@@ -175,10 +178,10 @@ export function ProductosView({
 
   // ============ SELECCIÓN MASIVA ============
   // Reset de la selección al cambiar los filtros que cambian el universo de
-  // productos (q/estado/stock/categoria). NO al cambiar orden/page/per_page:
+  // productos (q/estado/stock/marca/categoria). NO al cambiar orden/page/per_page:
   // esos no invalidan los ids, así la selección persiste cross-página.
   const limpiarSeleccion = useSeleccionStore((s) => s.limpiar)
-  const filterKey = `${filters.q}|${filters.estado}|${filters.stock}|${filters.categoria}`
+  const filterKey = `${filters.q}|${filters.estado}|${filters.stock}|${filters.marca}|${filters.categoria}`
   useEffect(() => {
     limpiarSeleccion()
   }, [filterKey, limpiarSeleccion])
@@ -257,12 +260,48 @@ export function ProductosView({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Filtro por categoría */}
+        {/* Filtro por marca */}
+        {marcas.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                {marcas.find((m) => m.id === filters.marca)?.nombre ??
+                  'Todas las marcas'}
+                {filters.marca && (
+                  <span className="ml-1 size-2 rounded-full bg-primary" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 max-h-96 overflow-y-auto"
+            >
+              <DropdownMenuLabel>Marca</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={filters.marca}
+                onValueChange={(v) => updateFilter('marca', v || null)}
+              >
+                <DropdownMenuRadioItem value="">
+                  Todas las marcas
+                </DropdownMenuRadioItem>
+                <DropdownMenuSeparator />
+                {marcas.map((m) => (
+                  <DropdownMenuRadioItem key={m.id} value={m.id}>
+                    {m.nombre}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Filtro por categoría real */}
         {categorias.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
-                {filters.categoria || 'Todas las categorías'}
+                {categorias.find((c) => c.id === filters.categoria)?.nombre ??
+                  'Todas las categorías'}
                 {filters.categoria && (
                   <span className="ml-1 size-2 rounded-full bg-primary" />
                 )}
@@ -282,8 +321,8 @@ export function ProductosView({
                 </DropdownMenuRadioItem>
                 <DropdownMenuSeparator />
                 {categorias.map((c) => (
-                  <DropdownMenuRadioItem key={c} value={c}>
-                    {c}
+                  <DropdownMenuRadioItem key={c.id} value={c.id}>
+                    {c.nombre}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -437,7 +476,9 @@ export function ProductosView({
         </div>
       )}
 
-      {puedeEditar && <BulkBarProductos categorias={categorias} />}
+      {puedeEditar && (
+        <BulkBarProductos marcas={marcas} categorias={categorias} />
+      )}
     </div>
   )
 }

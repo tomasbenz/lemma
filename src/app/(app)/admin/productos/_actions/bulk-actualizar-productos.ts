@@ -8,10 +8,26 @@ import { esMontoFinito } from '@/lib/cobro/calculos'
 
 const CAP = 1000
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export type BulkActualizarInput =
   | { accion: 'precio_pct'; ids: string[]; pct: number }
   | { accion: 'precio_fijo'; ids: string[]; precio: number }
-  | { accion: 'cambiar_categoria'; ids: string[]; categoria: string | null }
+  | {
+      accion: 'cambiar_marca'
+      ids: string[]
+      marcaId: string | null
+      /** Solo para auditoría legible (la RPC valida por id). */
+      marcaNombre?: string | null
+    }
+  | {
+      accion: 'cambiar_categoria'
+      ids: string[]
+      categoriaId: string | null
+      /** Solo para auditoría legible (la RPC valida por id). */
+      categoriaNombre?: string | null
+    }
   | { accion: 'cambiar_activo'; ids: string[]; activo: boolean }
   | { accion: 'stock_sumar'; ids: string[]; valor: number; motivo: string }
   | { accion: 'stock_restar'; ids: string[]; valor: number; motivo: string }
@@ -31,7 +47,7 @@ export type BulkActualizarResult =
  * Aplica una acción masiva sobre un conjunto de productos.
  *
  * Despacha a una de las dos RPCs atómicas (migración 007):
- *   - productos_bulk_update  → precio_pct, precio_fijo, cambiar_categoria, cambiar_activo
+ *   - productos_bulk_update  → precio_pct, precio_fijo, cambiar_marca, cambiar_categoria, cambiar_activo
  *   - productos_bulk_stock   → stock_sumar / stock_restar / stock_fijar
  *
  * Decisiones (ver migración 007):
@@ -82,6 +98,7 @@ export async function bulkActualizarProductos(
     if (
       input.accion === 'precio_pct' ||
       input.accion === 'precio_fijo' ||
+      input.accion === 'cambiar_marca' ||
       input.accion === 'cambiar_categoria' ||
       input.accion === 'cambiar_activo'
     ) {
@@ -100,14 +117,21 @@ export async function bulkActualizarProductos(
           }
           params = { precio: input.precio }
           break
+        case 'cambiar_marca':
+          if (input.marcaId !== null && !UUID_RE.test(input.marcaId)) {
+            return { ok: false, error: 'Marca inválida' }
+          }
+          // marca_nombre va solo para la auditoría legible; la RPC valida por id.
+          params = { marca_id: input.marcaId, marca_nombre: input.marcaNombre ?? null }
+          break
         case 'cambiar_categoria':
-          if (
-            input.categoria !== null &&
-            (typeof input.categoria !== 'string' || input.categoria.length > 100)
-          ) {
+          if (input.categoriaId !== null && !UUID_RE.test(input.categoriaId)) {
             return { ok: false, error: 'Categoría inválida' }
           }
-          params = { categoria: input.categoria }
+          params = {
+            categoria_id: input.categoriaId,
+            categoria_nombre: input.categoriaNombre ?? null,
+          }
           break
         case 'cambiar_activo':
           if (typeof input.activo !== 'boolean') {

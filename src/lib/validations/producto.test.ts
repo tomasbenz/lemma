@@ -266,23 +266,45 @@ test('productoSchema — tiene_variantes=false sin pasar variantes (default []) 
 })
 
 // ============================================================================
-// Campos opcionales: categoria, descripcion_corta acepta '' y undefined
+// Campos opcionales: marca_id / categoria_id (FKs) aceptan '' y undefined,
+// rechazan strings que no sean uuid. descripcion_corta acepta '' y undefined.
 // ============================================================================
 
-test('productoSchema — categoria vacía acepta', () => {
-  const r = productoSchema.safeParse({ ...baseProducto, categoria: '' })
+const UUID_OK = '11111111-1111-4111-8111-111111111111'
+
+test('productoSchema — marca_id/categoria_id vacíos aceptan', () => {
+  const r = productoSchema.safeParse({
+    ...baseProducto,
+    marca_id: '',
+    categoria_id: '',
+  })
   assert.equal(r.success, true)
 })
 
-test('productoSchema — categoria undefined acepta', () => {
+test('productoSchema — marca_id/categoria_id undefined aceptan', () => {
   const r = productoSchema.safeParse({ ...baseProducto })
   assert.equal(r.success, true)
 })
 
-test('productoSchema — categoria mayor a 50 chars rechaza', () => {
+test('productoSchema — marca_id uuid válido acepta', () => {
+  const r = productoSchema.safeParse({ ...baseProducto, marca_id: UUID_OK })
+  assert.equal(r.success, true)
+})
+
+test('productoSchema — categoria_id uuid válido acepta', () => {
+  const r = productoSchema.safeParse({ ...baseProducto, categoria_id: UUID_OK })
+  assert.equal(r.success, true)
+})
+
+test('productoSchema — marca_id no-uuid rechaza', () => {
+  const r = productoSchema.safeParse({ ...baseProducto, marca_id: 'Kangaro' })
+  assert.equal(r.success, false)
+})
+
+test('productoSchema — categoria_id no-uuid rechaza', () => {
   const r = productoSchema.safeParse({
     ...baseProducto,
-    categoria: 'A'.repeat(51),
+    categoria_id: 'Cuadernos',
   })
   assert.equal(r.success, false)
 })

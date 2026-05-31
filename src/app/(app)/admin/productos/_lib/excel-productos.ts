@@ -12,8 +12,9 @@ export type ColumnaExport =
   | 'sku_variante'
   | 'nombre'
   | 'atributos'
-  | 'categoria'
   | 'precio_neto'
+  | 'marca'
+  | 'categoria'
   | 'stock'
   | 'activo_producto'
   | 'activa_variante'
@@ -24,8 +25,9 @@ export const COLUMNAS_EXPORT: ColumnaExport[] = [
   'sku_variante',
   'nombre',
   'atributos',
-  'categoria',
   'precio_neto',
+  'marca',
+  'categoria',
   'stock',
   'activo_producto',
   'activa_variante',
@@ -33,7 +35,8 @@ export const COLUMNAS_EXPORT: ColumnaExport[] = [
 ]
 
 // Columnas product-level: si difieren entre filas del mismo sku_base, conflicto.
-const COLUMNAS_PRODUCTO = ['precio_neto', 'categoria', 'activo_producto'] as const
+// Orden lógico producto-level: precio, marca, categoria (real), activo.
+const COLUMNAS_PRODUCTO = ['precio_neto', 'marca', 'categoria', 'activo_producto'] as const
 
 const SI = 'Sí'
 const NO = 'No'
@@ -54,8 +57,9 @@ export function filasAObjetos(
     sku_variante: f.sku_variante,
     nombre: f.nombre,
     atributos: f.atributos,
-    categoria: f.categoria ?? '',
     precio_neto: f.precio_neto,
+    marca: f.marca ?? '',
+    categoria: f.categoria ?? '',
     stock: f.stock,
     activo_producto: f.activo_producto ? SI : NO,
     activa_variante: f.activa_variante ? SI : NO,
@@ -128,7 +132,14 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
   }
 
   const headers = Object.keys(rows[0] ?? {})
-  const faltantes = COLUMNAS_EXPORT.filter((c) => !headers.includes(c))
+
+  // Parser tolerante con el formato viejo: `marca` es una columna nueva. Si el
+  // Excel no la trae, no la exigimos (más abajo reinterpretamos `categoria`
+  // como `marca`, porque históricamente categoria == marca). El resto de las
+  // columnas del export siguen siendo obligatorias.
+  const tieneMarca = headers.includes('marca')
+  const obligatorias = COLUMNAS_EXPORT.filter((c) => c !== 'marca')
+  const faltantes = obligatorias.filter((c) => !headers.includes(c))
   if (faltantes.length > 0) {
     return {
       ok: false,
@@ -138,12 +149,23 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
     }
   }
 
+  // Excel viejo (categoria == marca, sin columna marca real). Avisamos una sola
+  // vez que reinterpretamos el valor de `categoria` como `marca`.
+  if (!tieneMarca) {
+    console.warn(
+      '[importar] El archivo no tiene columna "marca". Interpretando la columna ' +
+        '"categoria" como marca (formato viejo: categoria == marca) y dejando ' +
+        'la categoría real vacía.'
+    )
+  }
+
   type Crudo = {
     fila: number
     sku_base: string
     sku_variante: string
     nombre: string
     precio_neto: number
+    marca: string | null
     categoria: string | null
     activo: boolean
     stock: number
@@ -189,8 +211,22 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       return
     }
 
+    const marcaRaw = String(row.marca ?? '').trim()
     const categoriaRaw = String(row.categoria ?? '').trim()
     const codbarRaw = String(row.codigo_barras ?? '').trim()
+
+    // Reinterpretación del formato viejo: si no hay columna `marca`, el valor de
+    // `categoria` era en realidad la marca → lo mandamos a marca y dejamos la
+    // categoría real en null. Si hay columna `marca`, usamos ambas tal cual.
+    let marca: string | null
+    let categoria: string | null
+    if (tieneMarca) {
+      marca = marcaRaw === '' ? null : marcaRaw
+      categoria = categoriaRaw === '' ? null : categoriaRaw
+    } else {
+      marca = categoriaRaw === '' ? null : categoriaRaw
+      categoria = null
+    }
 
     crudos.push({
       fila: numFila,
@@ -198,7 +234,8 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       sku_variante: sku,
       nombre: String(row.nombre ?? '').trim(),
       precio_neto: precio,
-      categoria: categoriaRaw === '' ? null : categoriaRaw,
+      marca,
+      categoria,
       activo,
       stock,
       activa,
@@ -219,7 +256,7 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
     if (skusBaseEnConflicto.has(c.sku_base)) {
       omitidos.push({
         sku_variante: c.sku_variante,
-        motivo: 'Conflicto: filas del mismo producto con distinto precio/categoría/activo',
+        motivo: 'Conflicto: filas del mismo producto con distinto precio/marca/categoría/activo',
       })
       continue
     }
@@ -228,6 +265,7 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       sku_base: c.sku_base,
       nombre: c.nombre,
       precio_neto: c.precio_neto,
+      marca: c.marca,
       categoria: c.categoria,
       activo: c.activo,
       stock: c.stock,
@@ -241,12 +279,13 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
 
 /**
  * Devuelve el set de sku_base cuyas filas (mismo producto) discrepan en algún
- * campo product-level (precio_neto, categoria, activo).
+ * campo product-level (precio_neto, marca, categoria, activo).
  */
 export function detectarConflictosProductLevel(
   crudos: {
     sku_base: string
     precio_neto: number
+    marca: string | null
     categoria: string | null
     activo: boolean
   }[]
@@ -265,6 +304,7 @@ export function detectarConflictosProductLevel(
     const discrepa = grupo.some(
       (g) =>
         g.precio_neto !== primero.precio_neto ||
+        g.marca !== primero.marca ||
         g.categoria !== primero.categoria ||
         g.activo !== primero.activo
     )
@@ -282,6 +322,7 @@ export function detectarConflictosProductLevel(
 export type CeldaDiff = { actual: string; nuevo: string; cambio: boolean }
 export type ColumnaDiff =
   | 'precio_neto'
+  | 'marca'
   | 'categoria'
   | 'stock'
   | 'activo'
@@ -354,6 +395,9 @@ export function construirDiff(
 
     if (comparar('precio_neto', actual.precio_neto, f.precio_neto)) {
       cambio.precio_neto = f.precio_neto
+    }
+    if (comparar('marca', actual.marca, f.marca)) {
+      cambio.marca = f.marca
     }
     if (comparar('categoria', actual.categoria, f.categoria)) {
       cambio.categoria = f.categoria

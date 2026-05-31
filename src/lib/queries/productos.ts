@@ -6,13 +6,23 @@ import { formatAtributos } from '@/lib/format-atributos'
 export type ProductoConVariantes = Database['public']['Tables']['productos']['Row'] & {
   variantes: Database['public']['Tables']['variantes']['Row'][]
   stock_total: number
+  /** Nombre de la marca (vía JOIN en la vista). null si sin marca. */
+  marca_nombre: string | null
+  /** Nombre de la categoría real (vía JOIN en la vista). null si sin categoría. */
+  categoria_nombre: string | null
 }
+
+/** Opción simple {id, nombre} para selects/filtros de marca o categoría. */
+export type OpcionCatalogo = { id: string; nombre: string }
 
 export type ListarProductosOptions = {
   busqueda?: string
   soloActivos?: boolean
   stockBajo?: boolean
-  categoria?: string
+  /** Filtro por marca (FK productos.marca_id). */
+  marcaId?: string
+  /** Filtro por categoría real (FK productos.categoria_id). */
+  categoriaId?: string
   orden?: 'nombre_asc' | 'nombre_desc' | 'fecha_desc' | 'stock_asc' | 'stock_desc'
   limit?: number
   offset?: number
@@ -87,7 +97,10 @@ async function hidratarConVariantes(
       nombre: p.nombre as string,
       sku_base: p.sku_base as string,
       precio_neto: p.precio_neto as number,
-      categoria: p.categoria as string | null,
+      marca_id: (p.marca_id as string | null) ?? null,
+      marca_nombre: (p.marca_nombre as string | null) ?? null,
+      categoria_id: (p.categoria_id as string | null) ?? null,
+      categoria_nombre: (p.categoria_nombre as string | null) ?? null,
       imagen_url: p.imagen_url as string | null,
       track_stock: p.track_stock as boolean,
       activo: p.activo as boolean,
@@ -114,7 +127,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
     busqueda = '',
     soloActivos = true,
     stockBajo = false,
-    categoria = '',
+    marcaId = '',
+    categoriaId = '',
     orden = 'nombre_asc',
     limit = 50,
     offset = 0,
@@ -138,7 +152,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
       .in('id', rankedIds)
     if (soloActivos) filtroQuery = filtroQuery.eq('activo', true)
     if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
-    if (categoria) filtroQuery = filtroQuery.eq('categoria', categoria)
+    if (marcaId) filtroQuery = filtroQuery.eq('marca_id', marcaId)
+    if (categoriaId) filtroQuery = filtroQuery.eq('categoria_id', categoriaId)
 
     const { data: survData, error: survError } = await filtroQuery
     if (survError) {
@@ -180,9 +195,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
 
   if (stockBajo) aggQuery = aggQuery.eq('tiene_stock_bajo', true)
 
-  if (categoria) {
-    aggQuery = aggQuery.eq('categoria', categoria)
-  }
+  if (marcaId) aggQuery = aggQuery.eq('marca_id', marcaId)
+  if (categoriaId) aggQuery = aggQuery.eq('categoria_id', categoriaId)
 
   // Orden
   switch (orden) {
@@ -252,7 +266,7 @@ const BULK_CAP = 1000
 export async function listarProductoIdsPorFiltro(
   options: Pick<
     ListarProductosOptions,
-    'busqueda' | 'soloActivos' | 'stockBajo' | 'categoria'
+    'busqueda' | 'soloActivos' | 'stockBajo' | 'marcaId' | 'categoriaId'
   > = {}
 ): Promise<ListarProductoIdsResult> {
   const supabase = await createClient()
@@ -261,7 +275,8 @@ export async function listarProductoIdsPorFiltro(
     busqueda = '',
     soloActivos = true,
     stockBajo = false,
-    categoria = '',
+    marcaId = '',
+    categoriaId = '',
   } = options
 
   // ===== Rama con búsqueda: fuzzy por RPC =====
@@ -280,7 +295,8 @@ export async function listarProductoIdsPorFiltro(
       .in('id', rankedIds)
     if (soloActivos) q = q.eq('activo', true)
     if (stockBajo) q = q.eq('tiene_stock_bajo', true)
-    if (categoria) q = q.eq('categoria', categoria)
+    if (marcaId) q = q.eq('marca_id', marcaId)
+    if (categoriaId) q = q.eq('categoria_id', categoriaId)
 
     const { data, error } = await q
     if (error) {
@@ -303,7 +319,8 @@ export async function listarProductoIdsPorFiltro(
 
   if (soloActivos) query = query.eq('activo', true)
   if (stockBajo) query = query.eq('tiene_stock_bajo', true)
-  if (categoria) query = query.eq('categoria', categoria)
+  if (marcaId) query = query.eq('marca_id', marcaId)
+  if (categoriaId) query = query.eq('categoria_id', categoriaId)
 
   // Traemos 1001 para detectar el exceso de cap sin un count aparte.
   query = query.limit(BULK_CAP + 1)
@@ -382,6 +399,9 @@ export type ProductoFilaExport = {
   sku_variante: string
   nombre: string
   atributos: string
+  /** Nombre de la marca (productos.marca_id → marcas.nombre). */
+  marca: string | null
+  /** Nombre de la categoría real (productos.categoria_id → catalogo_categorias.nombre). */
   categoria: string | null
   precio_neto: number
   stock: number
@@ -410,7 +430,8 @@ export async function exportarProductosFilas(
     busqueda = '',
     soloActivos = true,
     stockBajo = false,
-    categoria = '',
+    marcaId = '',
+    categoriaId = '',
   } = options
 
   // Búsqueda fuzzy (si hay): restringe a los ids que matchean. El export se
@@ -423,12 +444,13 @@ export async function exportarProductosFilas(
 
   let agg = supabase
     .from('productos_con_stock_total')
-    .select('id, sku_base, nombre, categoria, precio_neto, track_stock, activo')
+    .select('id, sku_base, nombre, marca_nombre, categoria_nombre, precio_neto, track_stock, activo')
     .eq('empresa_id', user.empresa_id)
 
   if (soloActivos) agg = agg.eq('activo', true)
   if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
-  if (categoria) agg = agg.eq('categoria', categoria)
+  if (marcaId) agg = agg.eq('marca_id', marcaId)
+  if (categoriaId) agg = agg.eq('categoria_id', categoriaId)
   if (rankedIds) agg = agg.in('id', rankedIds)
 
   agg = agg.order('nombre', { ascending: true })
@@ -470,7 +492,8 @@ export async function exportarProductosFilas(
         sku_variante: v.sku_variante ?? '',
         nombre: p.nombre as string,
         atributos: formatAtributos(v.atributos),
-        categoria: (p.categoria as string | null) ?? null,
+        marca: (p.marca_nombre as string | null) ?? null,
+        categoria: (p.categoria_nombre as string | null) ?? null,
         precio_neto: p.precio_neto as number,
         stock: v.stock,
         activo_producto: p.activo as boolean,
@@ -498,7 +521,7 @@ export async function obtenerProducto(id: string) {
 
   const { data, error } = await supabase
     .from('productos')
-    .select(`*, variantes(*)`)
+    .select(`*, variantes(*), marca:marcas(nombre), categoria:catalogo_categorias(nombre)`)
     .eq('id', id)
     .eq('empresa_id', user.empresa_id)
     .single()
@@ -519,9 +542,19 @@ export async function obtenerProducto(id: string) {
     return skuA.localeCompare(skuB)
   })
 
+  // Embeds to-one: supabase puede tiparlos como objeto o como array de 1.
+  const nombreEmbed = (raw: unknown): string | null => {
+    const obj = Array.isArray(raw) ? raw[0] ?? null : raw
+    return obj && typeof obj === 'object' && 'nombre' in obj
+      ? ((obj as { nombre: string }).nombre ?? null)
+      : null
+  }
+
   return {
     ...data,
     variantes: variantesOrdenadas,
+    marca_nombre: nombreEmbed((data as { marca?: unknown }).marca),
+    categoria_nombre: nombreEmbed((data as { categoria?: unknown }).categoria),
   }
 }
 
@@ -549,25 +582,44 @@ export async function existeSkuBase(
 }
 
 /**
- * Lista categorías únicas existentes en la empresa actual (no nulas, no vacías).
- * Ordenadas alfabéticamente, case-insensitive.
+ * Lista las marcas activas de la empresa actual (id + nombre), ordenadas
+ * alfabéticamente. Fuente del dropdown de filtro "Marca" y del select del form.
+ * (RLS limita a la empresa del usuario.)
  */
-export async function listarCategorias(): Promise<string[]> {
+export async function listarMarcas(): Promise<OpcionCatalogo[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('productos')
-    .select('categoria')
-    .not('categoria', 'is', null)
-    .neq('categoria', '')
+    .from('marcas')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('nombre', { ascending: true })
 
   if (error) {
-    console.error('[listarCategorias] Error:', error.message)
+    console.error('[listarMarcas] Error:', error.message)
     return []
   }
 
-  const unicas = Array.from(
-    new Set((data ?? []).map((p) => p.categoria as string))
-  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  return (data ?? []).map((m) => ({ id: m.id as string, nombre: m.nombre as string }))
+}
 
-  return unicas
+/**
+ * Lista las categorías REALES activas (catalogo_categorias) de la empresa
+ * actual (id + nombre). Fuente del dropdown de filtro "Categoría" del listado.
+ * Para el form de producto ya existe `listarCategorias()` en queries/catalogos.
+ */
+export async function listarCategoriasReales(): Promise<OpcionCatalogo[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('catalogo_categorias')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    console.error('[listarCategoriasReales] Error:', error.message)
+    return []
+  }
+
+  return (data ?? []).map((c) => ({ id: c.id as string, nombre: c.nombre as string }))
 }

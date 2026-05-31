@@ -104,9 +104,12 @@ export default async function ProductoDetallePage({
               </div>
               <p className="text-sm text-muted-foreground mt-1 font-numeric">
                 {producto.sku_base}
-                {producto.categoria && (
+                {(producto.marca_nombre || producto.categoria_nombre) && (
                   <span className="ml-2 text-muted-foreground/70">
-                    · {producto.categoria}
+                    ·{' '}
+                    {[producto.marca_nombre, producto.categoria_nombre]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                 )}
               </p>

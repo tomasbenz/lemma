@@ -1,7 +1,7 @@
 // src/app/(app)/admin/catalogos/_components/catalogos-view.tsx
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, type ComponentType } from 'react'
 import {
   Plus,
   MoreHorizontal,
@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertCircle,
   FolderTree,
+  Tags,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import type { CatalogoItemAdmin } from '@/lib/queries/catalogos'
 import {
@@ -48,6 +55,11 @@ import {
   setCatalogoItemActivo,
 } from '../_actions/catalogos-actions'
 
+// Tablas de catálogo que comparten forma + CRUD. Espejo del `type Tabla`
+// del lado server (catalogos-actions.ts). Lo dejamos local para no exportar
+// tipos desde un módulo 'use server'.
+type Tabla = 'catalogo_categorias' | 'marcas'
+
 /**
  * Vista de catálogos.
  *
@@ -55,36 +67,75 @@ import {
  * eliminó las tablas `catalogo_talles` y `catalogo_colores` (eran
  * específicas del rubro textil del cliente original Loom Point).
  *
- * Acá solo queda CRUD de categorías. La definición de atributos
- * esperados por categoría (`categoria_atributos`) tiene su propio CRUD
- * pendiente y se gestiona por ahora vía la migración seed o SQL directo.
+ * Acá vive el CRUD de `catalogo_categorias` y `marcas`: comparten la misma
+ * forma de tabla, así que el componente `CatalogoTab` se parametriza por
+ * `tabla` y se reusa para ambas. La definición de atributos esperados por
+ * categoría (`categoria_atributos`) tiene su propio CRUD pendiente y se
+ * gestiona por ahora vía la migración seed o SQL directo.
  */
 export function CatalogosView({
   categorias,
+  marcas,
 }: {
   categorias: CatalogoItemAdmin[]
+  marcas: CatalogoItemAdmin[]
 }) {
   return (
-    <div className="space-y-4">
-      <CatalogoTab
-        items={categorias}
-        singular="categoría"
-        plural="categorías"
-        placeholderNombre="Ej: Cuadernos, Lápices, Témperas"
-      />
-    </div>
+    <Tabs defaultValue="categorias" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="categorias">
+          <FolderTree className="size-4" />
+          Categorías
+        </TabsTrigger>
+        <TabsTrigger value="marcas">
+          <Tags className="size-4" />
+          Marcas
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="categorias">
+        <CatalogoTab
+          tabla="catalogo_categorias"
+          items={categorias}
+          singular="categoría"
+          plural="categorías"
+          genero="f"
+          icono={FolderTree}
+          placeholderNombre="Ej: Cuadernos, Lápices, Témperas"
+        />
+      </TabsContent>
+
+      <TabsContent value="marcas">
+        <CatalogoTab
+          tabla="marcas"
+          items={marcas}
+          singular="marca"
+          plural="marcas"
+          genero="f"
+          icono={Tags}
+          placeholderNombre="Ej: Faber-Castell, Rivadavia, Maped"
+        />
+      </TabsContent>
+    </Tabs>
   )
 }
 
 function CatalogoTab({
+  tabla,
   items,
   singular,
   plural,
+  genero,
+  icono: Icono,
   placeholderNombre,
 }: {
+  tabla: Tabla
   items: CatalogoItemAdmin[]
   singular: string
   plural: string
+  // Género gramatical para concordar "activas/activos" y participios.
+  genero: 'f' | 'm'
+  icono: ComponentType<{ className?: string }>
   placeholderNombre: string
 }) {
   const [crearOpen, setCrearOpen] = useState(false)
@@ -97,11 +148,11 @@ function CatalogoTab({
     <>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <FolderTree className="size-4 text-muted-foreground" />
+          <Icono className="size-4 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            {activos.length} {plural} {plural === 'categorías' ? 'activas' : 'activos'}
+            {activos.length} {plural} {genero === 'f' ? 'activas' : 'activos'}
             {inactivos.length > 0 &&
-              ` · ${inactivos.length} ${inactivos.length === 1 ? 'inactivo' : 'inactivos'}`}
+              ` · ${inactivos.length} ${genero === 'f' ? 'inactiva' : 'inactivo'}${inactivos.length === 1 ? '' : 's'}`}
           </p>
         </div>
         <Button size="sm" onClick={() => setCrearOpen(true)}>
@@ -114,7 +165,9 @@ function CatalogoTab({
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-sm text-muted-foreground">
-              No hay {plural} cargados todavía. Creá la primera para empezar.
+              No hay {plural} {genero === 'f' ? 'cargadas' : 'cargados'}{' '}
+              todavía. Creá {genero === 'f' ? 'la primera' : 'el primero'} para
+              empezar.
             </p>
           </CardContent>
         </Card>
@@ -194,12 +247,15 @@ function CatalogoTab({
                             <DropdownMenuItem
                               onSelect={async () => {
                                 const result = await setCatalogoItemActivo(
-                                  'catalogo_categorias',
+                                  tabla,
                                   item.id,
                                   false
                                 )
                                 if (!result.ok) toast.error(result.error)
-                                else toast.success(`${singular} desactivada`)
+                                else
+                                  toast.success(
+                                    `${singular} ${genero === 'f' ? 'desactivada' : 'desactivado'}`
+                                  )
                               }}
                               className="text-destructive focus:text-destructive"
                             >
@@ -210,12 +266,15 @@ function CatalogoTab({
                             <DropdownMenuItem
                               onSelect={async () => {
                                 const result = await setCatalogoItemActivo(
-                                  'catalogo_categorias',
+                                  tabla,
                                   item.id,
                                   true
                                 )
                                 if (!result.ok) toast.error(result.error)
-                                else toast.success(`${singular} reactivada`)
+                                else
+                                  toast.success(
+                                    `${singular} ${genero === 'f' ? 'reactivada' : 'reactivado'}`
+                                  )
                               }}
                               className="text-success focus:text-success"
                             >
@@ -237,14 +296,18 @@ function CatalogoTab({
       <CrearItemDialog
         open={crearOpen}
         onOpenChange={setCrearOpen}
+        tabla={tabla}
         singular={singular}
+        genero={genero}
         placeholderNombre={placeholderNombre}
       />
 
       {editTarget && (
         <EditarItemDialog
           item={editTarget}
+          tabla={tabla}
           singular={singular}
+          genero={genero}
           onClose={() => setEditTarget(null)}
         />
       )}
@@ -255,12 +318,16 @@ function CatalogoTab({
 function CrearItemDialog({
   open,
   onOpenChange,
+  tabla,
   singular,
+  genero,
   placeholderNombre,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
+  tabla: Tabla
   singular: string
+  genero: 'f' | 'm'
   placeholderNombre: string
 }) {
   const [isPending, startTransition] = useTransition()
@@ -283,7 +350,7 @@ function CrearItemDialog({
     setErrors({})
     startTransition(async () => {
       const result = await crearCatalogoItem({
-        tabla: 'catalogo_categorias',
+        tabla,
         nombre,
         orden: parseInt(orden, 10) || 0,
       })
@@ -292,7 +359,7 @@ function CrearItemDialog({
         else toast.error(result.error)
         return
       }
-      toast.success(`${singular} creada`)
+      toast.success(`${singular} ${genero === 'f' ? 'creada' : 'creado'}`)
       handleClose(false)
     })
   }
@@ -355,11 +422,15 @@ function CrearItemDialog({
 
 function EditarItemDialog({
   item,
+  tabla,
   singular,
+  genero,
   onClose,
 }: {
   item: CatalogoItemAdmin
+  tabla: Tabla
   singular: string
+  genero: 'f' | 'm'
   onClose: () => void
 }) {
   const [isPending, startTransition] = useTransition()
@@ -371,7 +442,7 @@ function EditarItemDialog({
     setErrors({})
     startTransition(async () => {
       const result = await editarCatalogoItem({
-        tabla: 'catalogo_categorias',
+        tabla,
         id: item.id,
         nombre,
         orden: parseInt(orden, 10) || 0,
@@ -381,7 +452,7 @@ function EditarItemDialog({
         else toast.error(result.error)
         return
       }
-      toast.success(`${singular} actualizada`)
+      toast.success(`${singular} ${genero === 'f' ? 'actualizada' : 'actualizado'}`)
       onClose()
     })
   }

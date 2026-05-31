@@ -12,9 +12,9 @@ import { NumericInput } from '@/components/app/numeric-input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
-// Sentinela para representar "sin categoría" en el Select (radix no permite value="").
-// En buildInput se mapea a null.
-export const SIN_CATEGORIA = '__sin__'
+// Sentinela para representar "sin marca / sin categoría" en el Select (radix no
+// permite value=""). En buildInput se mapea a null.
+export const SIN_SELECCION = '__sin__'
 
 /** Segmented toggle reusable (patrón aria-pressed igual que productos-view.tsx). */
 function SegmentedToggle<T extends string>({
@@ -54,28 +54,37 @@ function SegmentedToggle<T extends string>({
   )
 }
 
-/** Cambiar categoría: Select con "Sin categoría" + existentes. */
-export function FormCategoria({
-  categorias,
+/**
+ * Cambiar marca o categoría: Select con opción "sin …" + existentes (por id).
+ * Reusable: el caller pasa el label y la lista de opciones {id, nombre}.
+ */
+export function FormCatalogoSelect({
+  label,
+  sinLabel,
+  placeholder,
+  opciones,
   value,
   onChange,
 }: {
-  categorias: string[]
+  label: string
+  sinLabel: string
+  placeholder: string
+  opciones: { id: string; nombre: string }[]
   value: string
   onChange: (v: string) => void
 }) {
   return (
     <div className="space-y-2">
-      <Label>Nueva categoría</Label>
+      <Label>{label}</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger>
-          <SelectValue placeholder="Elegí una categoría" />
+          <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={SIN_CATEGORIA}>Sin categoría</SelectItem>
-          {categorias.map((c) => (
-            <SelectItem key={c} value={c}>
-              {c}
+          <SelectItem value={SIN_SELECCION}>{sinLabel}</SelectItem>
+          {opciones.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.nombre}
             </SelectItem>
           ))}
         </SelectContent>

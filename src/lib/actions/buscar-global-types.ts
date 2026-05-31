@@ -7,7 +7,8 @@ export type ProductoGlobal = {
   nombre: string
   sku_base: string
   imagen_url: string | null
-  categoria: string | null
+  marca_nombre: string | null
+  categoria_nombre: string | null
 }
 
 export type VentaGlobal = {

@@ -31,7 +31,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NumericInput } from "@/components/app/numeric-input";
+import {
+  ComboboxCatalogo,
+  type ComboboxOption,
+} from "@/components/app/combobox-catalogo";
 import { ImagenProductoUpload } from "../../_components/imagen-producto-upload";
 import { ScannerModal } from "../../_components/scanner-modal";
 import {
@@ -44,7 +55,22 @@ import {
   verificarSkuDisponible,
   sugerirSkuBase,
 } from "../../nuevo/_actions/crear-producto";
+import { crearMarca } from "../../_actions/crear-marca";
 import { actualizarProducto } from "../../[id]/editar/_actions/actualizar-producto";
+
+// Sentinela "sin categoría" para el Select (radix no permite value=""). En el
+// submit se mapea a '' (que la action convierte a null).
+const SIN_CATEGORIA = "__sin__";
+
+/** Normaliza igual que la DB (lower + sin tildes + espacios colapsados). */
+function normalizarNombre(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .replace(/\s+/g, " ");
+}
 
 type SkuStatus =
   | { estado: "ocioso" }
@@ -75,11 +101,17 @@ export type ProductoFormInitialData = ProductoInput & {
  */
 export function ProductoForm({
   initialData,
+  marcas,
+  categorias,
 }: {
   initialData?: ProductoFormInitialData;
+  marcas: ComboboxOption[];
+  categorias: ComboboxOption[];
 }) {
   const router = useRouter();
   const esEdicion = !!initialData;
+  // Lista local de marcas: se le agregan las creadas al vuelo desde el combobox.
+  const [marcasLocal, setMarcasLocal] = useState<ComboboxOption[]>(marcas);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [skuStatus, setSkuStatus] = useState<SkuStatus>({ estado: "ocioso" });
   const [skuManual, setSkuManual] = useState(esEdicion);
@@ -92,7 +124,8 @@ export function ProductoForm({
       nombre: "",
       sku_base: "",
       precio_neto: 0,
-      categoria: "",
+      marca_id: "",
+      categoria_id: "",
       descripcion_corta: "",
       codigo_barras: "",
       imagen_url: null,
@@ -110,26 +143,29 @@ export function ProductoForm({
   });
 
   const tieneVariantes = form.watch("tiene_variantes");
-  const categoria = form.watch("categoria");
+  const marcaId = form.watch("marca_id");
   const sku = form.watch("sku_base");
 
-  // ============ AUTO-SUGERIR SKU cuando cambia la categoría (solo en alta) ============
-  const sugerirSku = useDebouncedCallback(async (cat: string) => {
+  // ============ AUTO-SUGERIR SKU cuando cambia la marca (solo en alta) ============
+  // El prefijo del SKU se deriva del nombre de la marca (preserva el
+  // comportamiento previo, cuando "categoria" era en realidad la marca).
+  const sugerirSku = useDebouncedCallback(async (texto: string) => {
     if (esEdicion) return;
     if (skuManual) return;
-    if (!cat || cat.trim().length < 3) return;
+    if (!texto || texto.trim().length < 3) return;
 
-    const sugerido = await sugerirSkuBase(cat);
+    const sugerido = await sugerirSkuBase(texto);
     if (sugerido && !skuManual) {
       form.setValue("sku_base", sugerido, { shouldValidate: true });
     }
   }, 500);
 
   useEffect(() => {
-    if (categoria && !esEdicion) {
-      sugerirSku(categoria);
+    if (marcaId && !esEdicion) {
+      const nombre = marcasLocal.find((m) => m.id === marcaId)?.nombre;
+      if (nombre) sugerirSku(nombre);
     }
-  }, [categoria, sugerirSku, esEdicion]);
+  }, [marcaId, marcasLocal, sugerirSku, esEdicion]);
 
   // ============ VALIDAR SKU DISPONIBLE en tiempo real ============
   const verificarSku = useDebouncedCallback(async (valor: string) => {
@@ -313,28 +349,106 @@ export function ProductoForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="categoria"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ej: Cuadernos, Lápices, Témperas"
-                      {...field}
-                    />
-                  </FormControl>
-                  {!esEdicion && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Marca: combobox con búsqueda fuzzy + alta al vuelo (creatable). */}
+              <FormField
+                control={form.control}
+                name="marca_id"
+                render={({ field }) => {
+                  const marcaActual = marcasLocal.find(
+                    (m) => m.id === field.value,
+                  );
+                  return (
+                    <FormItem>
+                      <FormLabel>Marca</FormLabel>
+                      <FormControl>
+                        <ComboboxCatalogo
+                          value={marcaActual?.nombre ?? ""}
+                          options={marcasLocal}
+                          placeholder="Elegí o creá una marca"
+                          emptyLabel="Sin marcas todavía"
+                          searchPlaceholder="Buscar o crear marca…"
+                          onChange={async (nombre) => {
+                            const norm = normalizarNombre(nombre);
+                            const existente = marcasLocal.find(
+                              (m) => m.nombre_normalizado === norm,
+                            );
+                            if (existente) {
+                              field.onChange(existente.id);
+                              return;
+                            }
+                            // Nueva marca: la creamos y usamos su id.
+                            const res = await crearMarca(nombre);
+                            if (!res.ok) {
+                              toast.error(res.error);
+                              return;
+                            }
+                            const nueva: ComboboxOption = {
+                              id: res.id,
+                              nombre: res.nombre,
+                              nombre_normalizado: res.nombre_normalizado,
+                            };
+                            setMarcasLocal((prev) =>
+                              prev.some((m) => m.id === nueva.id)
+                                ? prev
+                                : [...prev, nueva].sort((a, b) =>
+                                    a.nombre.localeCompare(b.nombre, "es", {
+                                      sensitivity: "base",
+                                    }),
+                                  ),
+                            );
+                            field.onChange(nueva.id);
+                          }}
+                        />
+                      </FormControl>
+                      {!esEdicion && (
+                        <FormDescription className="text-xs">
+                          Si elegís una marca, el SKU se sugiere automáticamente.
+                        </FormDescription>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
+              {/* Categoría real: solo selección (se administran en Catálogos). */}
+              <FormField
+                control={form.control}
+                name="categoria_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoría</FormLabel>
+                    <Select
+                      value={field.value || SIN_CATEGORIA}
+                      onValueChange={(v) =>
+                        field.onChange(v === SIN_CATEGORIA ? "" : v)
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sin categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={SIN_CATEGORIA}>
+                          Sin categoría
+                        </SelectItem>
+                        {categorias.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormDescription className="text-xs">
-                      Si completás la categoría, el SKU se sugiere
-                      automáticamente
+                      Opcional. Las categorías se administran en Catálogos.
                     </FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField

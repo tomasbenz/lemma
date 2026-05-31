@@ -11,7 +11,7 @@ export async function cargarProductosGlobal(): Promise<ProductoGlobal[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, sku_base, imagen_url, categoria')
+    .select('id, nombre, sku_base, imagen_url, marca:marcas(nombre), categoria:catalogo_categorias(nombre)')
     .eq('activo', true)
     .order('nombre', { ascending: true })
     .limit(500)
@@ -21,12 +21,21 @@ export async function cargarProductosGlobal(): Promise<ProductoGlobal[]> {
     return []
   }
 
+  // Embeds to-one: supabase puede tiparlos como objeto o como array de 1.
+  const nombreEmbed = (raw: unknown): string | null => {
+    const obj = Array.isArray(raw) ? raw[0] ?? null : raw
+    return obj && typeof obj === 'object' && 'nombre' in obj
+      ? ((obj as { nombre: string }).nombre ?? null)
+      : null
+  }
+
   return data.map((p) => ({
     id: p.id,
     nombre: p.nombre,
     sku_base: p.sku_base,
     imagen_url: p.imagen_url,
-    categoria: p.categoria,
+    marca_nombre: nombreEmbed(p.marca),
+    categoria_nombre: nombreEmbed(p.categoria),
   }))
 }
 

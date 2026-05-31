@@ -13,7 +13,7 @@ export type ExportarProductosResult =
 
 type Filtros = Pick<
   ListarProductosOptions,
-  'busqueda' | 'soloActivos' | 'stockBajo' | 'categoria'
+  'busqueda' | 'soloActivos' | 'stockBajo' | 'marcaId' | 'categoriaId'
 >
 
 /**

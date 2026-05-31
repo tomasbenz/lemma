@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { obtenerProducto } from '@/lib/queries/productos'
+import { listarMarcas, listarCategorias } from '@/lib/queries/catalogos'
 import { Button } from '@/components/ui/button'
 import { ProductoForm } from '../../nuevo/_components/producto-form'
 
@@ -43,7 +44,11 @@ export default async function EditarProductoPage({
   if (user.rol === 'vendedor') redirect('/caja')
 
   const { id } = await params
-  const producto = await obtenerProducto(id)
+  const [producto, marcas, categorias] = await Promise.all([
+    obtenerProducto(id),
+    listarMarcas(),
+    listarCategorias(),
+  ])
   if (!producto) notFound()
 
   // Preparar initialData para el form
@@ -79,7 +84,8 @@ export default async function EditarProductoPage({
     nombre: producto.nombre,
     sku_base: producto.sku_base,
     precio_neto: producto.precio_neto,
-    categoria: producto.categoria ?? '',
+    marca_id: producto.marca_id ?? '',
+    categoria_id: producto.categoria_id ?? '',
     descripcion_corta: producto.descripcion_corta ?? '',
     codigo_barras: codigoBarrasInicial,
     // Sin esto, el form arranca con imagen_url undefined y al guardar persiste
@@ -125,7 +131,11 @@ export default async function EditarProductoPage({
           </p>
         </div>
 
-        <ProductoForm initialData={initialData} />
+        <ProductoForm
+          initialData={initialData}
+          marcas={marcas}
+          categorias={categorias}
+        />
       </div>
     </div>
   )

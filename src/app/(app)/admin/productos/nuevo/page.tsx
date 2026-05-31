@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { listarMarcas, listarCategorias } from '@/lib/queries/catalogos'
 import { Button } from '@/components/ui/button'
 import { ProductoForm } from './_components/producto-form'
 
@@ -14,6 +15,11 @@ export default async function NuevoProductoPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (user.rol === 'vendedor') redirect('/caja')
+
+  const [marcas, categorias] = await Promise.all([
+    listarMarcas(),
+    listarCategorias(),
+  ])
 
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8">
@@ -39,7 +45,7 @@ export default async function NuevoProductoPage() {
         </div>
 
         {/* Form */}
-        <ProductoForm />
+        <ProductoForm marcas={marcas} categorias={categorias} />
       </div>
     </div>
   )

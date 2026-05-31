@@ -25,12 +25,13 @@ import { BulkAccionDialog } from './bulk-accion-dialog'
 import { BulkReglaDialog } from './bulk-regla-dialog'
 import { BulkPreviewDialog } from './bulk-preview-dialog'
 import {
-  FormCategoria,
+  FormCatalogoSelect,
   FormPrecioFijo,
   FormPrecioPct,
   FormStock,
-  SIN_CATEGORIA,
+  SIN_SELECCION,
 } from './bulk-forms'
+import type { OpcionCatalogo } from '@/lib/queries/productos'
 import {
   calcularPreviewPrecioPct,
   calcularPreviewStock,
@@ -45,6 +46,7 @@ import {
 type AccionAbierta =
   | 'activar'
   | 'desactivar'
+  | 'cambiar_marca'
   | 'cambiar_categoria'
   | 'precio_pct'
   | 'precio_fijo'
@@ -57,7 +59,13 @@ function assertNever(x: never): never {
   throw new Error(`Acción no manejada: ${String(x)}`)
 }
 
-export function BulkBarProductos({ categorias }: { categorias: string[] }) {
+export function BulkBarProductos({
+  marcas,
+  categorias,
+}: {
+  marcas: OpcionCatalogo[]
+  categorias: OpcionCatalogo[]
+}) {
   const cantidad = useSeleccionCantidad()
   const limpiar = useSeleccionStore((s) => s.limpiar)
   const router = useRouter()
@@ -70,7 +78,8 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
   const [aplicando, setAplicando] = useState(false)
 
   // ============ ESTADOS DE FORM (uno por acción) ============
-  const [categoria, setCategoria] = useState<string>(SIN_CATEGORIA)
+  const [marcaId, setMarcaId] = useState<string>(SIN_SELECCION)
+  const [categoriaId, setCategoriaId] = useState<string>(SIN_SELECCION)
   const [precioFijo, setPrecioFijo] = useState<number | null>(null)
   const [pctDireccion, setPctDireccion] = useState<'subir' | 'bajar'>('subir')
   const [pctValor, setPctValor] = useState<number | null>(null)
@@ -79,7 +88,8 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
   const [stockMotivo, setStockMotivo] = useState<string>('')
 
   function resetForms() {
-    setCategoria(SIN_CATEGORIA)
+    setMarcaId(SIN_SELECCION)
+    setCategoriaId(SIN_SELECCION)
     setPrecioFijo(null)
     setPctDireccion('subir')
     setPctValor(null)
@@ -118,12 +128,26 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
         return { accion: 'cambiar_activo', ids, activo: true }
       case 'desactivar':
         return { accion: 'cambiar_activo', ids, activo: false }
-      case 'cambiar_categoria':
+      case 'cambiar_marca': {
+        const id = marcaId === SIN_SELECCION ? null : marcaId
+        return {
+          accion: 'cambiar_marca',
+          ids,
+          marcaId: id,
+          marcaNombre: id ? marcas.find((m) => m.id === id)?.nombre ?? null : null,
+        }
+      }
+      case 'cambiar_categoria': {
+        const id = categoriaId === SIN_SELECCION ? null : categoriaId
         return {
           accion: 'cambiar_categoria',
           ids,
-          categoria: categoria === SIN_CATEGORIA ? null : categoria,
+          categoriaId: id,
+          categoriaNombre: id
+            ? categorias.find((c) => c.id === id)?.nombre ?? null
+            : null,
         }
+      }
       case 'precio_fijo':
         if (precioFijo === null || precioFijo <= 0) return null
         return { accion: 'precio_fijo', ids, precio: precioFijo }
@@ -259,6 +283,8 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
         return `¿Activar ${n} producto${plural}?`
       case 'desactivar':
         return `¿Desactivar ${n} producto${plural}?`
+      case 'cambiar_marca':
+        return `Cambiar marca de ${n} producto${plural}`
       case 'cambiar_categoria':
         return `Cambiar categoría de ${n} producto${plural}`
       case 'precio_fijo':
@@ -311,12 +337,26 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
 
   function renderForm() {
     switch (accion) {
+      case 'cambiar_marca':
+        return (
+          <FormCatalogoSelect
+            label="Nueva marca"
+            sinLabel="Sin marca"
+            placeholder="Elegí una marca"
+            opciones={marcas}
+            value={marcaId}
+            onChange={setMarcaId}
+          />
+        )
       case 'cambiar_categoria':
         return (
-          <FormCategoria
-            categorias={categorias}
-            value={categoria}
-            onChange={setCategoria}
+          <FormCatalogoSelect
+            label="Nueva categoría"
+            sinLabel="Sin categoría"
+            placeholder="Elegí una categoría"
+            opciones={categorias}
+            value={categoriaId}
+            onChange={setCategoriaId}
           />
         )
       case 'precio_fijo':
@@ -382,6 +422,9 @@ export function BulkBarProductos({ categorias }: { categorias: string[] }) {
                 Desactivar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => abrirAccion('cambiar_marca')}>
+                Cambiar marca
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => abrirAccion('cambiar_categoria')}>
                 Cambiar categoría
               </DropdownMenuItem>
