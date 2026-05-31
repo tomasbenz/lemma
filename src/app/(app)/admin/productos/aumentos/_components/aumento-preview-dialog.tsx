@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Loader2, AlertTriangle } from 'lucide-react'
+import { Loader2, AlertTriangle, Trash2 } from 'lucide-react'
 
 import {
   Dialog,
@@ -11,24 +11,42 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import { formatARS } from '@/lib/format'
-import { LABELS_REDONDEO, type EstrategiaRedondeo } from '@/lib/precios/redondeo'
-import type { PreviewAumentoResultado } from '../_actions/preview-aumento'
+import { cn } from '@/lib/utils'
 
-type PreviewOk = Extract<PreviewAumentoResultado, { ok: true }>
+export type PreviewRow = {
+  id: string
+  nombre: string
+  marca_nombre: string | null
+  precio_actual: number
+  precio_nuevo: number
+}
+
+function difPct(actual: number, nuevo: number): string {
+  if (actual <= 0) return '—'
+  const d = ((nuevo - actual) / actual) * 100
+  const r = Math.round(d * 10) / 10
+  return `${r > 0 ? '+' : ''}${r}%`
+}
 
 export function AumentoPreviewDialog({
   open,
   onOpenChange,
   loading,
-  error,
-  preview,
-  redondeo,
+  rows,
+  onQuitar,
   motivo,
   onMotivoChange,
   onAplicar,
@@ -37,166 +55,133 @@ export function AumentoPreviewDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
   loading: boolean
-  error: string | null
-  preview: PreviewOk | null
-  redondeo: EstrategiaRedondeo
+  rows: PreviewRow[]
+  onQuitar: (id: string) => void
   motivo: string
   onMotivoChange: (v: string) => void
   onAplicar: () => void
   aplicando: boolean
 }) {
-  const [confirmNegativos, setConfirmNegativos] = React.useState(false)
+  const [confirmMenores, setConfirmMenores] = React.useState(false)
 
-  // Resetear el check cuando se abre/cierra o cambia el preview.
   React.useEffect(() => {
-    setConfirmNegativos(false)
-  }, [open, preview])
+    setConfirmMenores(false)
+  }, [open])
 
-  const hayNegativos = preview?.hay_negativos ?? false
+  const hayMenores = rows.some((r) => r.precio_nuevo < r.precio_actual)
+  const hayCero = rows.some((r) => r.precio_nuevo <= 0)
   const motivoOk = motivo.trim().length > 0 && motivo.trim().length <= 200
-  const puedeAplicar =
-    !!preview &&
-    preview.total_afectados > 0 &&
-    motivoOk &&
-    (!hayNegativos || confirmNegativos) &&
-    !aplicando
 
-  const categoriasConCambio = preview
-    ? preview.por_categoria.filter((c) => c.n_productos > 0)
-    : []
+  const puedeAplicar =
+    rows.length > 0 &&
+    !hayCero &&
+    motivoOk &&
+    (!hayMenores || confirmMenores) &&
+    !aplicando &&
+    !loading
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Revisar aumento</DialogTitle>
+          <DialogTitle>
+            {loading
+              ? 'Calculando…'
+              : `Vas a actualizar ${rows.length} ${rows.length === 1 ? 'producto' : 'productos'}`}
+          </DialogTitle>
           <DialogDescription>
-            Revisá el impacto antes de aplicar. Esta acción no se puede deshacer.
+            Revisá los precios nuevos. Podés quitar productos de la operación.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Calculando preview…
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
-        ) : error ? (
-          <div className="py-6 text-sm text-destructive">{error}</div>
-        ) : preview ? (
+        ) : (
           <div className="space-y-4">
-            {/* Resumen */}
-            <div className="text-sm">
-              Vas a afectar{' '}
-              <span className="font-semibold font-numeric tabular-nums">
-                {preview.total_afectados}
-              </span>{' '}
-              {preview.total_afectados === 1 ? 'producto' : 'productos'} en{' '}
-              <span className="font-semibold font-numeric tabular-nums">
-                {categoriasConCambio.length}
-              </span>{' '}
-              {categoriasConCambio.length === 1 ? 'categoría' : 'categorías'}.
-            </div>
-
-            {/* Avisos */}
-            {preview.productos_sin_categoria_en_scope > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {preview.productos_sin_categoria_en_scope}{' '}
-                {preview.productos_sin_categoria_en_scope === 1
-                  ? 'producto sin categoría no se verá afectado'
-                  : 'productos sin categoría no se verán afectados'}
-                .
-              </p>
-            )}
-            {preview.hay_riesgo_cero && (
+            {hayCero && (
               <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                 <span>
-                  Con redondeo {LABELS_REDONDEO[redondeo]}, algunos productos
-                  baratos quedarían en $0. Revisá los ejemplos o cambiá el
-                  redondeo.
+                  Hay productos que quedarían en $0 por el redondeo. Quitalos
+                  (o cancelá y cambiá el redondeo) para poder aplicar.
                 </span>
               </div>
             )}
 
-            {/* Desglose por categoría */}
-            <div className="rounded-lg border divide-y max-h-56 overflow-y-auto no-scrollbar">
-              {categoriasConCambio.map((c) => (
-                <div
-                  key={c.categoria_id}
-                  className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                >
-                  <div className="min-w-0 flex items-center gap-2">
-                    <span className="truncate font-medium">
-                      {c.categoria_nombre}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] shrink-0">
-                      {c.pct > 0 ? `+${c.pct}` : c.pct}%
-                    </Badge>
-                    {c.riesgo_cero && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] shrink-0 border-destructive/50 text-destructive"
-                      >
-                        riesgo $0
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 font-numeric tabular-nums">
-                    <span className="text-muted-foreground text-xs">
-                      {c.n_productos} prod.
-                    </span>
-                    <span className="text-muted-foreground">
-                      {formatARS(c.prom_actual)}
-                    </span>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="font-semibold">
-                      {formatARS(c.prom_estimado)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-lg border overflow-hidden">
+              <div className="max-h-[50vh] overflow-y-auto no-scrollbar">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-muted/50 backdrop-blur z-10">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Marca</TableHead>
+                      <TableHead className="text-right">Actual</TableHead>
+                      <TableHead className="text-right">Nuevo</TableHead>
+                      <TableHead className="text-right w-16">Dif.</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => {
+                      const cero = r.precio_nuevo <= 0
+                      const menor = r.precio_nuevo < r.precio_actual
+                      return (
+                        <TableRow key={r.id} className={cn(cero && 'bg-destructive/5')}>
+                          <TableCell className="font-medium">
+                            <span className="truncate">{r.nombre}</span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {r.marca_nombre ?? '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-numeric tabular-nums text-muted-foreground">
+                            {formatARS(r.precio_actual)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right font-numeric tabular-nums font-semibold',
+                              cero && 'text-destructive'
+                            )}
+                          >
+                            {formatARS(r.precio_nuevo)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right font-numeric tabular-nums text-xs',
+                              menor ? 'text-destructive' : 'text-muted-foreground'
+                            )}
+                          >
+                            {difPct(r.precio_actual, r.precio_nuevo)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              onClick={() => onQuitar(r.id)}
+                              disabled={aplicando}
+                              aria-label={`Quitar ${r.nombre}`}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-
-            {/* Ejemplos */}
-            {preview.ejemplos.length > 0 && (
-              <details className="text-sm">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                  Ver ejemplos ({preview.ejemplos.length})
-                </summary>
-                <div className="mt-2 rounded-lg border divide-y max-h-48 overflow-y-auto no-scrollbar">
-                  {preview.ejemplos.map((e) => (
-                    <div
-                      key={e.producto_id}
-                      className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs"
-                    >
-                      <span className="truncate">{e.nombre}</span>
-                      <div className="flex items-center gap-1.5 shrink-0 font-numeric tabular-nums">
-                        <span className="text-muted-foreground">
-                          {formatARS(e.precio_actual)}
-                        </span>
-                        <span className="text-muted-foreground">→</span>
-                        <span
-                          className={
-                            e.precio_estimado === 0 ? 'text-destructive font-semibold' : 'font-semibold'
-                          }
-                        >
-                          {formatARS(e.precio_estimado)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
 
             {/* Motivo */}
             <div className="space-y-1.5">
-              <Label htmlFor="aumento-motivo">Motivo</Label>
+              <Label htmlFor="aumento-ws-motivo">Motivo</Label>
               <Input
-                id="aumento-motivo"
+                id="aumento-ws-motivo"
                 value={motivo}
                 onChange={(e) => onMotivoChange(e.target.value)}
-                placeholder="Ej: Suba proveedor Filgo 28-may"
+                placeholder="Ej: Aumento Filgo junio · Liquidación temporada"
                 maxLength={200}
                 disabled={aplicando}
               />
@@ -205,23 +190,22 @@ export function AumentoPreviewDialog({
               </p>
             </div>
 
-            {/* Confirmación extra si hay descuentos */}
-            {hayNegativos && (
+            {/* Confirmación si hay precios menores */}
+            {hayMenores && (
               <label className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm cursor-pointer">
                 <Checkbox
-                  checked={confirmNegativos}
-                  onCheckedChange={(v) => setConfirmNegativos(v === true)}
+                  checked={confirmMenores}
+                  onCheckedChange={(v) => setConfirmMenores(v === true)}
                   disabled={aplicando}
                   className="mt-0.5"
                 />
                 <span className="text-destructive">
-                  Confirmo que quiero APLICAR DESCUENTOS (algunos porcentajes son
-                  negativos).
+                  Confirmo que estoy aplicando precios MENORES a los actuales.
                 </span>
               </label>
             )}
           </div>
-        ) : null}
+        )}
 
         <DialogFooter>
           <Button
@@ -233,7 +217,7 @@ export function AumentoPreviewDialog({
           </Button>
           <Button onClick={onAplicar} disabled={!puedeAplicar}>
             {aplicando && <Loader2 className="size-4 mr-2 animate-spin" />}
-            {aplicando ? 'Aplicando…' : 'Aplicar aumento'}
+            {aplicando ? 'Aplicando…' : 'Aplicar'}
           </Button>
         </DialogFooter>
       </DialogContent>
