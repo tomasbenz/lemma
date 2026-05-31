@@ -84,6 +84,7 @@ export default async function EditarProductoPage({
     nombre: producto.nombre,
     sku_base: producto.sku_base,
     precio_neto: producto.precio_neto,
+    costo: producto.costo ?? null,
     marca_id: producto.marca_id ?? '',
     categoria_id: producto.categoria_id ?? '',
     descripcion_corta: producto.descripcion_corta ?? '',

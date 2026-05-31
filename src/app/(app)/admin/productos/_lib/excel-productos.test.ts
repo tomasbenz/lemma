@@ -57,6 +57,7 @@ function actual(over: Partial<EstadoActualImport> = {}): EstadoActualImport {
     sku_base: over.sku_base ?? 'BASE-1',
     nombre: over.nombre ?? 'Producto',
     precio_neto: over.precio_neto ?? 100,
+    costo: over.costo === undefined ? null : over.costo,
     marca: over.marca === undefined ? 'KANGARO' : over.marca,
     categoria: over.categoria === undefined ? 'PAPELERIA' : over.categoria,
     activo: over.activo ?? true,
@@ -164,6 +165,25 @@ test('objetosAFilas — marca vacía → null', () => {
   if (res.ok) assert.equal(res.filas[0].marca, null)
 })
 
+// Costo: columna OPCIONAL. Si el archivo la trae, se lee; si no, queda null.
+test('objetosAFilas — archivo con columna costo parsea OK', () => {
+  const res = objetosAFilas([row({ costo: 80 })])
+  assert.equal(res.ok, true)
+  if (res.ok) assert.equal(res.filas[0].costo, 80)
+})
+
+test('objetosAFilas — archivo sin columna costo sigue funcionando (costo null)', () => {
+  // row() no incluye la columna costo → costo queda null (no se toca en DB).
+  const res = objetosAFilas([row()])
+  assert.equal(res.ok, true)
+  if (res.ok) assert.equal(res.filas[0].costo, null)
+})
+
+test('objetosAFilas — costo negativo rechaza', () => {
+  const res = objetosAFilas([row({ costo: -10 })])
+  assert.equal(res.ok, false)
+})
+
 // Parser tolerante: Excel viejo SIN columna `marca`. La columna `categoria`
 // (que históricamente era la marca) se reinterpreta como marca y la categoría
 // real queda en null.
@@ -227,6 +247,7 @@ function parseada(over: Partial<FilaParseada> = {}): FilaParseada {
     sku_base: over.sku_base ?? 'BASE-1',
     nombre: over.nombre ?? 'Producto',
     precio_neto: over.precio_neto ?? 100,
+    costo: over.costo === undefined ? null : over.costo,
     marca: over.marca === undefined ? 'KANGARO' : over.marca,
     categoria: over.categoria === undefined ? 'PAPELERIA' : over.categoria,
     activo: over.activo ?? true,

@@ -34,9 +34,14 @@ export const COLUMNAS_EXPORT: ColumnaExport[] = [
   'codigo_barras',
 ]
 
+// `costo` es una columna OPCIONAL del import (no parte del export estándar):
+// el parser la lee si el archivo la trae con cualquiera de estos encabezados.
+// La vista del export no expone costo, así que no se incluye en COLUMNAS_EXPORT.
+const HEADERS_COSTO = ['costo', 'Costo', 'Costo Interno'] as const
+
 // Columnas product-level: si difieren entre filas del mismo sku_base, conflicto.
-// Orden lógico producto-level: precio, marca, categoria (real), activo.
-const COLUMNAS_PRODUCTO = ['precio_neto', 'marca', 'categoria', 'activo_producto'] as const
+// Orden lógico producto-level: precio, costo, marca, categoria (real), activo.
+const COLUMNAS_PRODUCTO = ['precio_neto', 'costo', 'marca', 'categoria', 'activo_producto'] as const
 
 const SI = 'Sí'
 const NO = 'No'
@@ -138,6 +143,9 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
   // como `marca`, porque históricamente categoria == marca). El resto de las
   // columnas del export siguen siendo obligatorias.
   const tieneMarca = headers.includes('marca')
+  // `costo` es opcional: si el archivo trae alguno de los encabezados conocidos,
+  // se lee; si no, se ignora (no toca el costo en DB).
+  const headerCosto = HEADERS_COSTO.find((h) => headers.includes(h)) ?? null
   const obligatorias = COLUMNAS_EXPORT.filter((c) => c !== 'marca')
   const faltantes = obligatorias.filter((c) => !headers.includes(c))
   if (faltantes.length > 0) {
@@ -165,6 +173,7 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
     sku_variante: string
     nombre: string
     precio_neto: number
+    costo: number | null
     marca: string | null
     categoria: string | null
     activo: boolean
@@ -211,6 +220,21 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       return
     }
 
+    // Costo opcional (columna tolerante). Vacío → null (no tocar). Negativo o
+    // no numérico → error.
+    let costo: number | null = null
+    if (headerCosto) {
+      const costoRaw = row[headerCosto]
+      if (String(costoRaw ?? '').trim() !== '') {
+        const c = parseNumero(costoRaw)
+        if (c === null || c < 0) {
+          errores.push(`Fila ${numFila} (${sku}): costo inválido`)
+          return
+        }
+        costo = c
+      }
+    }
+
     const marcaRaw = String(row.marca ?? '').trim()
     const categoriaRaw = String(row.categoria ?? '').trim()
     const codbarRaw = String(row.codigo_barras ?? '').trim()
@@ -234,6 +258,7 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       sku_variante: sku,
       nombre: String(row.nombre ?? '').trim(),
       precio_neto: precio,
+      costo,
       marca,
       categoria,
       activo,
@@ -265,6 +290,7 @@ export function objetosAFilas(rows: Record<string, unknown>[]): ResultadoParseo 
       sku_base: c.sku_base,
       nombre: c.nombre,
       precio_neto: c.precio_neto,
+      costo: c.costo,
       marca: c.marca,
       categoria: c.categoria,
       activo: c.activo,
@@ -285,6 +311,7 @@ export function detectarConflictosProductLevel(
   crudos: {
     sku_base: string
     precio_neto: number
+    costo: number | null
     marca: string | null
     categoria: string | null
     activo: boolean
@@ -304,6 +331,7 @@ export function detectarConflictosProductLevel(
     const discrepa = grupo.some(
       (g) =>
         g.precio_neto !== primero.precio_neto ||
+        g.costo !== primero.costo ||
         g.marca !== primero.marca ||
         g.categoria !== primero.categoria ||
         g.activo !== primero.activo
@@ -322,6 +350,7 @@ export function detectarConflictosProductLevel(
 export type CeldaDiff = { actual: string; nuevo: string; cambio: boolean }
 export type ColumnaDiff =
   | 'precio_neto'
+  | 'costo'
   | 'marca'
   | 'categoria'
   | 'stock'
@@ -395,6 +424,11 @@ export function construirDiff(
 
     if (comparar('precio_neto', actual.precio_neto, f.precio_neto)) {
       cambio.precio_neto = f.precio_neto
+    }
+    // costo: solo se compara/aplica si la fila trae un costo (number). null =
+    // columna ausente o celda vacía → "no tocar" (no se puede borrar vía import).
+    if (f.costo != null && comparar('costo', actual.costo, f.costo)) {
+      cambio.costo = f.costo
     }
     if (comparar('marca', actual.marca, f.marca)) {
       cambio.marca = f.marca

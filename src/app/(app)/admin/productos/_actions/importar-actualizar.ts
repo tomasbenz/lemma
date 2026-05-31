@@ -11,6 +11,7 @@ const CAP = 1000
 export type CambioImport = {
   sku_variante: string
   precio_neto?: number
+  costo?: number | null
   marca?: string | null
   categoria?: string | null
   activo?: boolean
@@ -25,6 +26,7 @@ export type EstadoActualImport = {
   sku_base: string
   nombre: string
   precio_neto: number
+  costo: number | null
   marca: string | null
   categoria: string | null
   activo: boolean
@@ -75,7 +77,7 @@ export async function previewImportProductos(
     const { data, error } = await supabase
       .from('variantes')
       .select(
-        'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, activo, marca:marcas(nombre), categoria:catalogo_categorias(nombre))'
+        'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, costo, activo, marca:marcas(nombre), categoria:catalogo_categorias(nombre))'
       )
       .in('sku_variante', skus)
       .eq('empresa_id', user.empresa_id)
@@ -91,6 +93,7 @@ export async function previewImportProductos(
         sku_base: string
         nombre: string
         precio_neto: number
+        costo: number | null
         activo: boolean
         marca: { nombre: string } | null
         categoria: { nombre: string } | null
@@ -100,6 +103,7 @@ export async function previewImportProductos(
         sku_base: p.sku_base,
         nombre: p.nombre,
         precio_neto: p.precio_neto,
+        costo: p.costo ?? null,
         marca: p.marca?.nombre ?? null,
         categoria: p.categoria?.nombre ?? null,
         activo: p.activo,
@@ -144,6 +148,9 @@ export async function aplicarImportProductos(
       }
       if (c.precio_neto !== undefined && (!esMontoFinito(c.precio_neto) || c.precio_neto <= 0)) {
         return { ok: false, error: 'Hay precios inválidos' }
+      }
+      if (c.costo != null && (!esMontoFinito(c.costo) || c.costo < 0)) {
+        return { ok: false, error: 'Hay costos inválidos' }
       }
       if (c.stock !== undefined && (!Number.isInteger(c.stock) || c.stock < 0)) {
         return { ok: false, error: 'Hay valores de stock inválidos' }

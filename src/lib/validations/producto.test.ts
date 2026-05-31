@@ -309,6 +309,28 @@ test('productoSchema — categoria_id no-uuid rechaza', () => {
   assert.equal(r.success, false)
 })
 
+// ============================================================================
+// costo: número >= 0, nullable/opcional
+// ============================================================================
+
+test('productoSchema — costo válido acepta', () => {
+  const r = productoSchema.safeParse({ ...baseProducto, costo: 50.5 })
+  assert.equal(r.success, true)
+})
+
+test('productoSchema — costo negativo rechaza', () => {
+  const r = productoSchema.safeParse({ ...baseProducto, costo: -5 })
+  assert.equal(r.success, false)
+})
+
+test('productoSchema — costo null/undefined acepta', () => {
+  assert.equal(
+    productoSchema.safeParse({ ...baseProducto, costo: null }).success,
+    true
+  )
+  assert.equal(productoSchema.safeParse({ ...baseProducto }).success, true)
+})
+
 test('productoSchema — descripcion_corta mayor a 500 chars rechaza', () => {
   const r = productoSchema.safeParse({
     ...baseProducto,

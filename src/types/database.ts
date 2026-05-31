@@ -1107,6 +1107,7 @@ export type Database = {
           alicuota_iva: number
           busqueda_normalizada: string | null
           categoria_id: string | null
+          costo: number | null
           created_at: string
           descripcion_corta: string | null
           descripcion_larga: string | null
@@ -1132,6 +1133,7 @@ export type Database = {
           alicuota_iva?: number
           busqueda_normalizada?: string | null
           categoria_id?: string | null
+          costo?: number | null
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null
@@ -1157,6 +1159,7 @@ export type Database = {
           alicuota_iva?: number
           busqueda_normalizada?: string | null
           categoria_id?: string | null
+          costo?: number | null
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null

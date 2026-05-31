@@ -43,6 +43,7 @@ import {
   ComboboxCatalogo,
   type ComboboxOption,
 } from "@/components/app/combobox-catalogo";
+import { cn } from "@/lib/utils";
 import { ImagenProductoUpload } from "../../_components/imagen-producto-upload";
 import { ScannerModal } from "../../_components/scanner-modal";
 import {
@@ -124,6 +125,7 @@ export function ProductoForm({
       nombre: "",
       sku_base: "",
       precio_neto: 0,
+      costo: null,
       marca_id: "",
       categoria_id: "",
       descripcion_corta: "",
@@ -145,6 +147,18 @@ export function ProductoForm({
   const tieneVariantes = form.watch("tiene_variantes");
   const marcaId = form.watch("marca_id");
   const sku = form.watch("sku_base");
+
+  // ============ MARGEN EN TIEMPO REAL ============
+  // margen = (precio - costo) / precio. Solo si ambos > 0. Sin estado extra.
+  const costoWatch = form.watch("costo");
+  const precioWatch = form.watch("precio_neto");
+  const margen =
+    typeof costoWatch === "number" &&
+    costoWatch > 0 &&
+    typeof precioWatch === "number" &&
+    precioWatch > 0
+      ? ((precioWatch - costoWatch) / precioWatch) * 100
+      : null;
 
   // ============ AUTO-SUGERIR SKU cuando cambia la marca (solo en alta) ============
   // El prefijo del SKU se deriva del nombre de la marca (preserva el
@@ -448,12 +462,11 @@ export function ProductoForm({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="sku_base"
-                render={({ field }) => (
-                  <FormItem>
+            <FormField
+              control={form.control}
+              name="sku_base"
+              render={({ field }) => (
+                <FormItem>
                     <FormLabel>SKU *</FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -495,6 +508,7 @@ export function ProductoForm({
                 )}
               />
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="precio_neto"
@@ -513,14 +527,58 @@ export function ProductoForm({
                         className="font-numeric"
                       />
                     </FormControl>
+                    <FormDescription className="text-xs">Sin IVA</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="costo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Costo</FormLabel>
+                    <FormControl>
+                      <NumericInput
+                        value={field.value ?? null}
+                        onChange={(v) => field.onChange(v ?? null)}
+                        decimals={2}
+                        min={0}
+                        prefix="$"
+                        allowEmpty
+                        placeholder="0,00"
+                        className="font-numeric"
+                      />
+                    </FormControl>
                     <FormDescription className="text-xs">
-                      Sin IVA
+                      Lo que pagás al proveedor. Sirve para calcular margen.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            {/* Indicador de margen en tiempo real (debajo del precio/costo) */}
+            {margen !== null && (
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  margen >= 30
+                    ? "text-success"
+                    : margen >= 0
+                      ? "text-warning"
+                      : "text-destructive"
+                )}
+              >
+                {margen < 0
+                  ? `¡Pérdida! Margen: ${margen.toFixed(1)}%`
+                  : margen >= 30
+                    ? `Margen: ${margen.toFixed(1)}%`
+                    : `Margen bajo: ${margen.toFixed(1)}%`}
+              </p>
+            )}
 
             <FormField
               control={form.control}

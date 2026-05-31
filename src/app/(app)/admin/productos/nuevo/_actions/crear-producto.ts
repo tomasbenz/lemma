@@ -96,6 +96,7 @@ export async function crearProducto(
         nombre: data.nombre.trim(),
         sku_base: data.sku_base,
         precio_neto: data.precio_neto,
+        costo: data.costo ?? null,
         marca_id: data.marca_id || null,
         categoria_id: data.categoria_id || null,
         descripcion_corta: data.descripcion_corta?.trim() || null,

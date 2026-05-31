@@ -93,6 +93,16 @@ export const productoSchema = z
       .min(0, 'No puede ser negativo')
       .max(99999999, 'Precio demasiado alto'),
 
+    // Costo unitario (lo que paga la empresa al proveedor). Nullable: muchos
+    // productos todavía no tienen costo cargado. Sirve para calcular margen.
+    costo: z
+      .number()
+      .nullable()
+      .optional()
+      .refine((v) => v == null || v >= 0, {
+        message: 'El costo no puede ser negativo',
+      }),
+
     // FK a marcas. '' del select se trata como "sin marca" (null) en la action.
     marca_id: z
       .string()
