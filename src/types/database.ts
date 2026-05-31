@@ -2123,6 +2123,10 @@ export type Database = {
         Args: { p_ip?: unknown; p_user_agent?: string }
         Returns: undefined
       }
+      reporte_dashboard: {
+        Args: { p_desde: string; p_hasta: string; p_turno_id?: string }
+        Returns: Json
+      }
       reporte_ventas_agregado: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json

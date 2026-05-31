@@ -57,7 +57,9 @@
       "Bash(echo \"EXIT_ESLINT=$?\")",
       "Bash(echo \"EXIT_TEST=$?\")",
       "Bash(echo \"EXIT_BUILD=$?\")",
-      "Bash(grep -o '\\\\$function\\\\$' supabase/migrations/00000000000014_rediseño_catalogo_marca_categoria.sql)"
+      "Bash(grep -o '\\\\$function\\\\$' supabase/migrations/00000000000014_rediseño_catalogo_marca_categoria.sql)",
+      "Bash(awk '/CREATE OR REPLACE FUNCTION public.reporte_ventas_agregado/,/^\\\\$function\\\\$;/' supabase/migrations/00000000000003_rpcs_helpers_y_triggers.sql)",
+      "Bash(grep -nE 'export function|}: \\\\{|: \\\\{$|titulo|columnas|filas|ganancia|data:' __TRACKED_VAR__.tsx)"
     ]
   }
 }

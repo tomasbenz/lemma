@@ -23,10 +23,9 @@ import {
 const PERIODOS_VALIDOS: PeriodoReporte[] = [
   'hoy',
   'ayer',
-  '7d',
-  '30d',
-  '90d',
+  'semana_actual',
   'mes_actual',
+  'mes_pasado',
   'anio_actual',
   'personalizado',
 ]
@@ -34,11 +33,10 @@ const PERIODOS_VALIDOS: PeriodoReporte[] = [
 const PERIODOS_LABEL: Record<PeriodoReporte, string> = {
   hoy: 'Hoy',
   ayer: 'Ayer',
-  '7d': 'Últimos 7 días',
-  '30d': 'Últimos 30 días',
-  '90d': 'Últimos 90 días',
-  mes_actual: 'Mes actual',
-  anio_actual: 'Año actual',
+  semana_actual: 'Esta semana',
+  mes_actual: 'Este mes',
+  mes_pasado: 'Mes pasado',
+  anio_actual: 'Este año',
   personalizado: 'Personalizado',
 }
 
@@ -91,7 +89,7 @@ export async function exportarReportePdf(
       input.periodo as PeriodoReporte
     )
       ? (input.periodo as PeriodoReporte)
-      : '30d'
+      : 'mes_actual'
 
     const opts: OpcionesReporte = {
       periodo,

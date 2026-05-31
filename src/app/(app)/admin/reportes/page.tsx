@@ -7,6 +7,8 @@ import {
   obtenerTopProductos,
   obtenerDistribucionMediosPago,
   obtenerVentasAnuladas,
+  obtenerReporteDashboard,
+  obtenerTurnosConDiferencia,
   type PeriodoReporte,
   type OpcionesReporte,
 } from '@/lib/queries/reportes'
@@ -28,10 +30,9 @@ type SearchParams = Promise<{
 const PERIODOS_VALIDOS: PeriodoReporte[] = [
   'hoy',
   'ayer',
-  '7d',
-  '30d',
-  '90d',
+  'semana_actual',
   'mes_actual',
+  'mes_pasado',
   'anio_actual',
   'personalizado',
 ]
@@ -54,7 +55,7 @@ export default async function ReportesPage({
     sp.periodo as PeriodoReporte
   )
     ? (sp.periodo as PeriodoReporte)
-    : '30d'
+    : 'mes_actual'
 
   // Validar fechas personalizadas (solo se aplican si periodo === 'personalizado')
   const desde = sp.desde && FECHA_REGEX.test(sp.desde) ? sp.desde : null
@@ -173,12 +174,15 @@ async function ReportesContent({
   turnoId: string | null
   turnosOptions: TurnoOption[]
 }) {
-  const [kpisYVentas, topProductos, mediosPago, anuladas] = await Promise.all([
-    obtenerKpisYVentasDiarias(opts),
-    obtenerTopProductos(opts, 10),
-    obtenerDistribucionMediosPago(opts),
-    obtenerVentasAnuladas(opts),
-  ])
+  const [kpisYVentas, topProductos, mediosPago, anuladas, dashboard, turnosDiff] =
+    await Promise.all([
+      obtenerKpisYVentasDiarias(opts),
+      obtenerTopProductos(opts, 10),
+      obtenerDistribucionMediosPago(opts),
+      obtenerVentasAnuladas(opts),
+      obtenerReporteDashboard(opts),
+      obtenerTurnosConDiferencia(opts),
+    ])
 
   return (
     <ReportesView
@@ -191,6 +195,8 @@ async function ReportesContent({
       topProductos={topProductos}
       mediosPago={mediosPago}
       anuladas={anuladas}
+      dashboard={dashboard}
+      turnosDiferencia={turnosDiff}
       turnosOptions={turnosOptions}
     />
   )

@@ -43,11 +43,19 @@ import type {
   ProductoTop,
   MedioPagoAgregado,
   VentasAnuladasAgregado,
+  ReporteDashboard,
+  TurnoDiferencia,
 } from '@/lib/queries/reportes'
 import { exportarReporteExcel } from '../_actions/exportar-reporte-excel'
 import { exportarReportePdf } from '../_actions/exportar-reporte-pdf'
 import { GraficoVentas } from './grafico-ventas'
 import { GraficoMediosPago } from './grafico-medios-pago'
+import { KpiGananciaCard } from './kpi-ganancia-card'
+import { TablaTopProductos } from './tabla-top-productos'
+import { TablaRankingMarcas } from './tabla-ranking-marcas'
+import { TablaVendedores } from './tabla-vendedores'
+import { TablaTurnosDiferencia } from './tabla-turnos-diferencia'
+import { GraficoVentasPorHora } from './grafico-ventas-por-hora'
 
 export type TurnoOption = {
   id: string
@@ -66,17 +74,18 @@ type Props = {
   topProductos: ProductoTop[]
   mediosPago: MedioPagoAgregado[]
   anuladas: VentasAnuladasAgregado
+  dashboard: ReporteDashboard
+  turnosDiferencia: TurnoDiferencia[]
   turnosOptions: TurnoOption[]
 }
 
 const PERIODOS_LABEL: Record<PeriodoReporte, string> = {
   hoy: 'Hoy',
   ayer: 'Ayer',
-  '7d': 'Últimos 7 días',
-  '30d': 'Últimos 30 días',
-  '90d': 'Últimos 90 días',
-  mes_actual: 'Mes actual',
-  anio_actual: 'Año actual',
+  semana_actual: 'Esta semana',
+  mes_actual: 'Este mes',
+  mes_pasado: 'Mes pasado',
+  anio_actual: 'Este año',
   personalizado: 'Personalizado',
 }
 
@@ -84,10 +93,9 @@ const PERIODOS_LABEL: Record<PeriodoReporte, string> = {
 const PERIODOS_PRESET: PeriodoReporte[] = [
   'hoy',
   'ayer',
-  '7d',
-  '30d',
-  '90d',
+  'semana_actual',
   'mes_actual',
+  'mes_pasado',
   'anio_actual',
 ]
 
@@ -123,6 +131,8 @@ export function ReportesView({
   topProductos,
   mediosPago,
   anuladas,
+  dashboard,
+  turnosDiferencia,
   turnosOptions,
 }: Props) {
   const router = useRouter()
@@ -148,7 +158,7 @@ export function ReportesView({
     const nextTurno =
       overrides.turno_id === undefined ? turnoId : overrides.turno_id
 
-    if (nextPeriodo !== '30d') params.set('periodo', nextPeriodo)
+    if (nextPeriodo !== 'mes_actual') params.set('periodo', nextPeriodo)
     if (nextDesde) params.set('desde', nextDesde)
     if (nextHasta) params.set('hasta', nextHasta)
     if (nextTurno) params.set('turno_id', nextTurno)
@@ -416,7 +426,7 @@ export function ReportesView({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard
           icon={<Receipt className="size-4 text-muted-foreground" />}
           label="Ventas"
@@ -430,6 +440,7 @@ export function ReportesView({
           destacado
           stagger="stagger-2"
         />
+        <KpiGananciaCard ganancia={dashboard.ganancia} />
         <KpiCard
           icon={<Package className="size-4 text-muted-foreground" />}
           label="Unidades"
@@ -537,6 +548,45 @@ export function ReportesView({
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* ============ PRODUCTOS ============ */}
+      <h2 className="text-lg font-semibold tracking-tight pt-2">Productos</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TablaTopProductos
+          titulo="Top 20 por monto facturado"
+          filas={dashboard.top_monto}
+          columnas={['monto', 'unidades']}
+        />
+        <TablaTopProductos
+          titulo="Top 20 por cantidad vendida"
+          filas={dashboard.top_cantidad}
+          columnas={['unidades', 'monto']}
+        />
+        <TablaTopProductos
+          titulo="Vendidos a pérdida (margen negativo)"
+          filas={dashboard.margen_negativo}
+          columnas={['margen', 'monto', 'unidades']}
+          vacioTexto="Ningún producto se vendió a pérdida en el período."
+        />
+        <TablaTopProductos
+          titulo="Productos dormidos (con stock, sin ventas)"
+          filas={dashboard.dormidos}
+          columnas={['stock_total']}
+          vacioTexto="No hay productos dormidos en el período."
+        />
+      </div>
+
+      {/* ============ MARCAS ============ */}
+      <h2 className="text-lg font-semibold tracking-tight pt-2">Marcas</h2>
+      <TablaRankingMarcas filas={dashboard.ranking_marcas} />
+
+      {/* ============ OPERACIÓN ============ */}
+      <h2 className="text-lg font-semibold tracking-tight pt-2">Operación</h2>
+      <GraficoVentasPorHora data={dashboard.ventas_por_hora} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TablaVendedores filas={dashboard.ventas_por_vendedor} />
+        <TablaTurnosDiferencia filas={turnosDiferencia} />
       </div>
     </div>
   )

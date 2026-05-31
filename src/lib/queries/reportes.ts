@@ -1,29 +1,11 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { calcularRango } from './reportes-rango'
 
-export type PeriodoReporte =
-  | 'hoy'
-  | 'ayer'
-  | '7d'
-  | '30d'
-  | '90d'
-  | 'mes_actual'
-  | 'anio_actual'
-  | 'personalizado'
-
-export type OpcionesReporte = {
-  periodo: PeriodoReporte
-  /** ISO YYYY-MM-DD. Solo se usa si periodo === 'personalizado'. */
-  desde?: string | null
-  /** ISO YYYY-MM-DD. Solo se usa si periodo === 'personalizado'. */
-  hasta?: string | null
-  /**
-   * Si viene, todas las queries filtran por venta.turno_id = turnoId.
-   * El rango de fechas se sigue calculando del `periodo`, pero el
-   * caller (página) generalmente lo deriva del turno (abierto_at → cerrado_at).
-   */
-  turnoId?: string | null
-}
+// Re-export del cálculo de rango (módulo puro, testeable sin server-only).
+export { calcularRango } from './reportes-rango'
+export type { PeriodoReporte, OpcionesReporte } from './reportes-rango'
+import type { PeriodoReporte, OpcionesReporte } from './reportes-rango'
 
 export type KpisReporte = {
   ventas_total: number
@@ -57,86 +39,6 @@ export type MedioPagoAgregado = {
 export type VentasAnuladasAgregado = {
   cantidad: number
   monto_total: number
-}
-
-// ============ Helper: rango de fechas ============
-
-function inicioDelDia(d: Date): Date {
-  const r = new Date(d)
-  r.setHours(0, 0, 0, 0)
-  return r
-}
-
-function finDelDia(d: Date): Date {
-  const r = new Date(d)
-  r.setHours(23, 59, 59, 999)
-  return r
-}
-
-/**
- * Devuelve { desde, hasta } como Date locales según el periodo.
- * Para 'personalizado' usa los strings ISO YYYY-MM-DD (si no vienen
- * válidos, cae a 7d para no romper).
- */
-export function calcularRango(opts: OpcionesReporte): {
-  desde: Date
-  hasta: Date
-} {
-  const ahora = new Date()
-  const hoyInicio = inicioDelDia(ahora)
-
-  switch (opts.periodo) {
-    case 'hoy':
-      return { desde: hoyInicio, hasta: ahora }
-    case 'ayer': {
-      const ayer = new Date(hoyInicio)
-      ayer.setDate(ayer.getDate() - 1)
-      return { desde: ayer, hasta: finDelDia(ayer) }
-    }
-    case '7d': {
-      const d = new Date(hoyInicio)
-      d.setDate(d.getDate() - 7)
-      return { desde: d, hasta: ahora }
-    }
-    case '30d': {
-      const d = new Date(hoyInicio)
-      d.setDate(d.getDate() - 30)
-      return { desde: d, hasta: ahora }
-    }
-    case '90d': {
-      const d = new Date(hoyInicio)
-      d.setDate(d.getDate() - 90)
-      return { desde: d, hasta: ahora }
-    }
-    case 'mes_actual': {
-      const d = new Date(ahora)
-      d.setDate(1)
-      d.setHours(0, 0, 0, 0)
-      return { desde: d, hasta: ahora }
-    }
-    case 'anio_actual': {
-      const d = new Date(ahora)
-      d.setMonth(0, 1)
-      d.setHours(0, 0, 0, 0)
-      return { desde: d, hasta: ahora }
-    }
-    case 'personalizado': {
-      // YYYY-MM-DD esperado. Si no parsea, fallback a 7d.
-      const re = /^\d{4}-\d{2}-\d{2}$/
-      const desdeOk = opts.desde && re.test(opts.desde)
-      const hastaOk = opts.hasta && re.test(opts.hasta)
-      if (!desdeOk || !hastaOk) {
-        // Fallback silencioso a 7d
-        return calcularRango({ periodo: '7d' })
-      }
-      return {
-        desde: inicioDelDia(new Date(opts.desde + 'T00:00:00')),
-        hasta: finDelDia(new Date(opts.hasta + 'T00:00:00')),
-      }
-    }
-    default:
-      return calcularRango({ periodo: '7d' })
-  }
 }
 
 // ============ Query agregada en DB (KPIs + ventas por día) ============
@@ -457,4 +359,193 @@ export async function obtenerVentasPorDia(
 ): Promise<VentaPorDia[]> {
   const { ventasPorDia } = await obtenerKpisYVentasDiarias(asOpts(arg))
   return ventasPorDia
+}
+
+// ============================================================================
+// Dashboard expandido (Fase 2) — RPC consolidada reporte_dashboard
+// ============================================================================
+
+export type GananciaReporte = {
+  monto: number
+  items_con_costo: number
+  items_total: number
+  cobertura_pct: number
+}
+
+export type ProductoMonto = {
+  producto_id: string
+  producto_nombre: string
+  producto_sku: string
+  monto: number
+  unidades: number
+}
+
+export type ProductoMargen = {
+  producto_id: string
+  producto_nombre: string
+  producto_sku: string
+  margen: number
+  monto: number
+  unidades: number
+}
+
+export type ProductoDormido = {
+  producto_id: string
+  producto_nombre: string
+  producto_sku: string
+  stock_total: number | null
+}
+
+export type MarcaRanking = {
+  marca_id: string | null
+  marca_nombre: string
+  monto: number
+  unidades: number
+}
+
+export type VentaPorHora = {
+  hora: number
+  transacciones: number
+  monto: number
+}
+
+export type VendedorReporte = {
+  usuario_id: string
+  nombre_completo: string
+  transacciones: number
+  monto: number
+}
+
+export type ReporteDashboard = {
+  ganancia: GananciaReporte
+  top_monto: ProductoMonto[]
+  top_cantidad: ProductoMonto[]
+  margen_negativo: ProductoMargen[]
+  dormidos: ProductoDormido[]
+  ranking_marcas: MarcaRanking[]
+  ventas_por_hora: VentaPorHora[]
+  ventas_por_vendedor: VendedorReporte[]
+}
+
+const DASHBOARD_VACIO: ReporteDashboard = {
+  ganancia: { monto: 0, items_con_costo: 0, items_total: 0, cobertura_pct: 0 },
+  top_monto: [],
+  top_cantidad: [],
+  margen_negativo: [],
+  dormidos: [],
+  ranking_marcas: [],
+  ventas_por_hora: [],
+  ventas_por_vendedor: [],
+}
+
+/**
+ * Llama a la RPC consolidada `reporte_dashboard` (todas las secciones nuevas en
+ * una sola roundtrip). SECURITY INVOKER + RLS limitan por empresa del caller.
+ */
+export async function obtenerReporteDashboard(
+  arg: PeriodoOrOpts
+): Promise<ReporteDashboard> {
+  const opts = asOpts(arg)
+  const supabase = await createClient()
+  const { desde, hasta } = calcularRango(opts)
+
+  const { data, error } = await supabase.rpc('reporte_dashboard', {
+    p_desde: desde.toISOString(),
+    p_hasta: hasta.toISOString(),
+    p_turno_id: opts.turnoId ?? undefined,
+  })
+
+  if (error || !data) {
+    console.error('[obtenerReporteDashboard]', error)
+    return { ...DASHBOARD_VACIO }
+  }
+
+  const r = data as unknown as Partial<ReporteDashboard>
+  return {
+    ganancia: r.ganancia ?? DASHBOARD_VACIO.ganancia,
+    top_monto: r.top_monto ?? [],
+    top_cantidad: r.top_cantidad ?? [],
+    margen_negativo: r.margen_negativo ?? [],
+    dormidos: r.dormidos ?? [],
+    ranking_marcas: r.ranking_marcas ?? [],
+    ventas_por_hora: r.ventas_por_hora ?? [],
+    ventas_por_vendedor: r.ventas_por_vendedor ?? [],
+  }
+}
+
+// ============================================================================
+// Turnos con diferencia de caja (query directa, sin RPC)
+// ============================================================================
+
+export type TurnoDiferencia = {
+  id: string
+  abierto_at: string
+  cerrado_at: string | null
+  vendedor: string | null
+  base_inicial: number
+  total_declarado: number | null
+  diferencia: number
+}
+
+type UsuarioEmbed = { nombre_completo: string | null; email: string | null }
+
+/**
+ * Turnos cerrados en el rango con diferencia de caja distinta de cero.
+ * El rango se calcula por `cerrado_at` (cuándo se cerró el turno).
+ */
+export async function obtenerTurnosConDiferencia(
+  arg: PeriodoOrOpts
+): Promise<TurnoDiferencia[]> {
+  const opts = asOpts(arg)
+  const supabase = await createClient()
+  const { desde, hasta } = calcularRango(opts)
+
+  let query = supabase
+    .from('turnos_caja')
+    .select(
+      `
+      id,
+      abierto_at,
+      cerrado_at,
+      base_inicial,
+      total_declarado,
+      diferencia,
+      usuario_apertura:usuarios!turnos_caja_usuario_apertura_id_fkey(nombre_completo, email)
+    `
+    )
+    .not('cerrado_at', 'is', null)
+    .not('diferencia', 'is', null)
+    .neq('diferencia', 0)
+    .gte('cerrado_at', desde.toISOString())
+    .lte('cerrado_at', hasta.toISOString())
+    .order('cerrado_at', { ascending: false })
+
+  if (opts.turnoId) {
+    query = query.eq('id', opts.turnoId)
+  }
+
+  const { data, error } = await query
+
+  if (error || !data) {
+    console.error('[obtenerTurnosConDiferencia]', error)
+    return []
+  }
+
+  return data.map((t) => {
+    const uaRaw = t.usuario_apertura as
+      | UsuarioEmbed
+      | UsuarioEmbed[]
+      | null
+    const ua = Array.isArray(uaRaw) ? uaRaw[0] ?? null : uaRaw
+    return {
+      id: t.id as string,
+      abierto_at: t.abierto_at as string,
+      cerrado_at: t.cerrado_at as string | null,
+      vendedor: ua?.nombre_completo ?? ua?.email ?? null,
+      base_inicial: Number(t.base_inicial ?? 0),
+      total_declarado:
+        t.total_declarado !== null ? Number(t.total_declarado) : null,
+      diferencia: Number(t.diferencia ?? 0),
+    }
+  })
 }
