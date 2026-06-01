@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import type { OpcionCatalogo } from '@/lib/queries/productos'
-import { redondearPrecio } from '@/lib/precios/redondeo'
+import { redondearPrecio, DEFAULT_REDONDEO } from '@/lib/precios/redondeo'
 import { AumentoFiltrosBar } from './aumento-filtros'
 import { AumentoTabla } from './aumento-tabla'
 import { AumentoBulkBar, type AccionAumento } from './aumento-bulk-bar'
@@ -74,6 +74,7 @@ export function AumentoWorkspace({
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [previewLoading, setPreviewLoading] = React.useState(false)
   const [rows, setRows] = React.useState<PreviewRow[]>([])
+  const [accionActual, setAccionActual] = React.useState<AccionAumento | null>(null)
   const [motivo, setMotivo] = React.useState('')
   const [aplicando, setAplicando] = React.useState(false)
 
@@ -193,6 +194,7 @@ export function AumentoWorkspace({
   async function abrirPreview(accion: AccionAumento) {
     const ids = [...seleccionados]
     if (ids.length === 0) return
+    setAccionActual(accion)
     setPreviewOpen(true)
     setPreviewLoading(true)
     setRows([])
@@ -311,6 +313,9 @@ export function AumentoWorkspace({
         onMotivoChange={setMotivo}
         onAplicar={aplicar}
         aplicando={aplicando}
+        accion={accionActual?.tipo ?? 'subir'}
+        valor={accionActual?.valor ?? 0}
+        redondeo={accionActual?.redondeo ?? DEFAULT_REDONDEO}
       />
     </div>
   )

@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { formatARS } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { LABELS_REDONDEO, type EstrategiaRedondeo } from '@/lib/precios/redondeo'
 
 export type PreviewRow = {
   id: string
@@ -51,6 +52,9 @@ export function AumentoPreviewDialog({
   onMotivoChange,
   onAplicar,
   aplicando,
+  accion,
+  valor,
+  redondeo,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -61,6 +65,10 @@ export function AumentoPreviewDialog({
   onMotivoChange: (v: string) => void
   onAplicar: () => void
   aplicando: boolean
+  /** Lo que pidió el usuario en la barra bulk (para mostrar contexto). */
+  accion: 'subir' | 'bajar' | 'fijar'
+  valor: number
+  redondeo: EstrategiaRedondeo
 }) {
   const [confirmMenores, setConfirmMenores] = React.useState(false)
 
@@ -80,6 +88,15 @@ export function AumentoPreviewDialog({
     !aplicando &&
     !loading
 
+  // Lo que el usuario PIDIÓ (la columna "Dif." muestra el efecto real por fila
+  // tras el redondeo, que puede no coincidir exacto con el % pedido).
+  const descripcionAjuste =
+    accion === 'subir'
+      ? `Subir +${valor}%`
+      : accion === 'bajar'
+        ? `Bajar ${valor}%`
+        : `Fijar precio a ${formatARS(valor)}`
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
@@ -90,9 +107,14 @@ export function AumentoPreviewDialog({
               : `Vas a actualizar ${rows.length} ${rows.length === 1 ? 'producto' : 'productos'}`}
           </DialogTitle>
           <DialogDescription>
-            Revisá los precios nuevos. Podés quitar productos de la operación.
+            {descripcionAjuste} · Redondeo: {LABELS_REDONDEO[redondeo]}
           </DialogDescription>
         </DialogHeader>
+        {!loading && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Revisá los precios nuevos. Podés quitar productos de la operación.
+          </p>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-10">
