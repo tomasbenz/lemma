@@ -369,3 +369,93 @@ test('productoSchema — stock_inicial entero >= 0', () => {
   assert.equal(r2.success, false)
   assert.equal(r3.success, false)
 })
+
+// ============================================================================
+// varianteId — contrato del campo (alta + edición)
+// ============================================================================
+//
+// ⚠️ IMPORTANTE: estos tests NO atrapan el bug original que motivó el fix. El
+// bug era del FORM (react-hook-form mandaba '' en vez del uuid porque el hidden
+// input no tenía defaultValue), NO del schema — de hecho el schema con un uuid
+// válido SIEMPRE pasó. Acá sólo cubrimos el CONTRATO del schema como red de
+// seguridad contra regresiones futuras del propio schema (ej: que alguien
+// saque el preprocess y vuelva a romper con '' → "Invalid UUID"). Un test real
+// del bug necesitaría renderizar el form (RHF), y el repo no tiene infra de
+// component tests (jsdom / testing-library).
+
+const VARIANTE_UUID = '05d86415-2b71-43da-9192-0315b613fd71'
+
+function productoConVariantes(
+  variantes: Array<Record<string, unknown>>
+): Record<string, unknown> {
+  return { ...baseProducto, tiene_variantes: true, variantes }
+}
+
+test('varianteId — editar variante existente (uuid válido) pasa', () => {
+  const r = productoSchema.safeParse(
+    productoConVariantes([
+      {
+        varianteId: VARIANTE_UUID,
+        atributos: [{ clave: 'color', valor: 'azul' }],
+        stock: 20,
+        codigo_barras: '7791234567890',
+      },
+    ])
+  )
+  assert.equal(r.success, true)
+})
+
+test('varianteId — alta variante nueva (undefined) pasa', () => {
+  const r = productoSchema.safeParse(
+    productoConVariantes([
+      { atributos: [{ clave: 'color', valor: 'azul' }], stock: 5 },
+    ])
+  )
+  assert.equal(r.success, true)
+})
+
+test("varianteId — string vacío '' pasa (preprocess '' → undefined)", () => {
+  // Es lo que el form mandaba y rompía. El preprocess lo normaliza a undefined.
+  const r = productoSchema.safeParse(
+    productoConVariantes([
+      { varianteId: '', atributos: [{ clave: 'color', valor: 'azul' }], stock: 5 },
+    ])
+  )
+  assert.equal(r.success, true)
+  // Y queda como undefined (→ INSERT en el server action), no como ''.
+  if (r.success) assert.equal(r.data.variantes[0].varianteId, undefined)
+})
+
+test('varianteId — string no-uuid rechaza con path correcto', () => {
+  const r = productoSchema.safeParse(
+    productoConVariantes([
+      { varianteId: 'no-es-uuid', atributos: [], stock: 5 },
+    ])
+  )
+  assert.equal(r.success, false)
+  if (!r.success) {
+    const paths = r.error.issues.map((i) => i.path.join('.'))
+    assert.ok(
+      paths.includes('variantes.0.varianteId'),
+      `Esperaba error en variantes.0.varianteId, fueron: ${paths.join(', ')}`
+    )
+  }
+})
+
+test('varianteId — mix (una existente con uuid, una nueva sin id) pasa', () => {
+  const r = productoSchema.safeParse(
+    productoConVariantes([
+      {
+        varianteId: VARIANTE_UUID,
+        atributos: [{ clave: 'color', valor: 'azul' }],
+        stock: 20,
+      },
+      { atributos: [{ clave: 'color', valor: 'rojo' }], stock: 8 },
+    ])
+  )
+  assert.equal(r.success, true)
+  if (r.success) {
+    assert.equal(r.data.variantes[0].varianteId, VARIANTE_UUID)
+    assert.equal(r.data.variantes[1].varianteId, undefined)
+  }
+})
