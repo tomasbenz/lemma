@@ -249,12 +249,62 @@ export function ProductoForm({
   function onInvalid(errors: typeof form.formState.errors) {
     console.warn("[ProductoForm] Validación falló:", errors);
     const variantesError = errors.variantes;
-    const variantesMsg =
-      variantesError && !Array.isArray(variantesError)
-        ? variantesError.message
-        : Array.isArray(variantesError)
-          ? "Revisá los atributos de las variantes: cada uno necesita nombre y valor."
+    let variantesMsg: string | null = null;
+    if (variantesError && !Array.isArray(variantesError)) {
+      // Error a nivel del array (ej: refine "agregá al menos una variante").
+      variantesMsg =
+        typeof variantesError.message === "string"
+          ? variantesError.message
           : null;
+    } else if (Array.isArray(variantesError)) {
+      // Pinea la primera variante/campo que falla con el mensaje real del
+      // schema, en vez del viejo texto hardcodeado que siempre culpaba a los
+      // atributos (enmascaraba fallas de codigo_barras, stock, etc.).
+      for (let i = 0; i < variantesError.length && !variantesMsg; i++) {
+        const v = variantesError[i] as
+          | {
+              codigo_barras?: { message?: string };
+              stock?: { message?: string };
+              varianteId?: { message?: string };
+              atributos?:
+                | { message?: string }
+                | Array<
+                    | { clave?: { message?: string }; valor?: { message?: string } }
+                    | undefined
+                  >;
+            }
+          | undefined;
+        if (!v) continue;
+        const nro = i + 1;
+        if (v.codigo_barras?.message) {
+          variantesMsg = `Variante ${nro}: ${v.codigo_barras.message}`;
+        } else if (v.stock?.message) {
+          variantesMsg = `Variante ${nro}: ${v.stock.message}`;
+        } else if (v.varianteId?.message) {
+          variantesMsg = `Variante ${nro}: ${v.varianteId.message}`;
+        } else if (Array.isArray(v.atributos)) {
+          for (let j = 0; j < v.atributos.length && !variantesMsg; j++) {
+            const a = v.atributos[j];
+            if (a?.clave?.message) {
+              variantesMsg = `Variante ${nro}, atributo ${j + 1}: ${a.clave.message}`;
+            } else if (a?.valor?.message) {
+              variantesMsg = `Variante ${nro}, atributo ${j + 1}: ${a.valor.message}`;
+            }
+          }
+          if (!variantesMsg) {
+            variantesMsg = `Variante ${nro}: hay un error de validación`;
+          }
+        } else if (
+          v.atributos &&
+          "message" in v.atributos &&
+          v.atributos.message
+        ) {
+          variantesMsg = `Variante ${nro}: ${v.atributos.message}`;
+        } else {
+          variantesMsg = `Variante ${nro}: hay un error de validación`;
+        }
+      }
+    }
     const primerError =
       errors.nombre?.message ||
       errors.sku_base?.message ||
