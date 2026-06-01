@@ -69,10 +69,11 @@ export async function crearProducto(
 
     const supabase = await createClient()
 
-    // 3. Verificar SKU único (incluyendo productos inactivos)
+    // 3. Verificar SKU único (incluyendo productos inactivos) en la empresa.
     const { data: existente } = await supabase
       .from('productos')
       .select('id, nombre, activo')
+      .eq('empresa_id', user.empresa_id)
       .eq('sku_base', data.sku_base)
       .maybeSingle()
 
@@ -258,7 +259,7 @@ export async function verificarSkuDisponible(
 
   try {
     const user = await getCurrentUser()
-    if (!user) {
+    if (!user?.empresa_id) {
       return { disponible: true }
     }
 
@@ -266,6 +267,7 @@ export async function verificarSkuDisponible(
     const { data } = await supabase
       .from('productos')
       .select('nombre, activo')
+      .eq('empresa_id', user.empresa_id)
       .eq('sku_base', sku.toUpperCase().trim())
       .maybeSingle()
 
@@ -299,7 +301,7 @@ export async function sugerirSkuBase(
 
   try {
     const user = await getCurrentUser()
-    if (!user) return null
+    if (!user?.empresa_id) return null
 
     const prefijo = base
       .trim()
@@ -315,6 +317,7 @@ export async function sugerirSkuBase(
     const { data } = await supabase
       .from('productos')
       .select('sku_base')
+      .eq('empresa_id', user.empresa_id)
       .like('sku_base', `${prefijo}-%`)
       .order('sku_base', { ascending: false })
       .limit(1)

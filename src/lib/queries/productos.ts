@@ -607,11 +607,16 @@ export async function existeSkuBase(
   sku: string,
   excluirId?: string
 ): Promise<boolean> {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return false
+
   const supabase = await createClient()
 
   let query = supabase
     .from('productos')
     .select('id')
+    // Defense in depth sobre RLS: scopea por empresa.
+    .eq('empresa_id', user.empresa_id)
     .eq('sku_base', sku)
     .limit(1)
 
@@ -629,10 +634,15 @@ export async function existeSkuBase(
  * (RLS limita a la empresa del usuario.)
  */
 export async function listarMarcas(): Promise<OpcionCatalogo[]> {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return []
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('marcas')
     .select('id, nombre')
+    // Defense in depth sobre RLS: scopea por empresa.
+    .eq('empresa_id', user.empresa_id)
     .eq('activo', true)
     .order('nombre', { ascending: true })
 
@@ -650,10 +660,15 @@ export async function listarMarcas(): Promise<OpcionCatalogo[]> {
  * Para el form de producto ya existe `listarCategorias()` en queries/catalogos.
  */
 export async function listarCategoriasReales(): Promise<OpcionCatalogo[]> {
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) return []
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('catalogo_categorias')
     .select('id, nombre')
+    // Defense in depth sobre RLS: scopea por empresa.
+    .eq('empresa_id', user.empresa_id)
     .eq('activo', true)
     .order('orden', { ascending: true })
     .order('nombre', { ascending: true })
