@@ -1028,6 +1028,50 @@ export type Database = {
           },
         ]
       }
+      operaciones_masivas_precio_detalle: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          operacion_id: string
+          precio_anterior: number
+          precio_nuevo: number
+          producto_id: string
+          producto_nombre_snapshot: string
+          producto_sku_snapshot: string | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          operacion_id: string
+          precio_anterior: number
+          precio_nuevo: number
+          producto_id: string
+          producto_nombre_snapshot: string
+          producto_sku_snapshot?: string | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          operacion_id?: string
+          precio_anterior?: number
+          precio_nuevo?: number
+          producto_id?: string
+          producto_nombre_snapshot?: string
+          producto_sku_snapshot?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operaciones_masivas_precio_detalle_operacion_id_fkey"
+            columns: ["operacion_id"]
+            isOneToOne: false
+            referencedRelation: "operaciones_masivas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagos: {
         Row: {
           confirmed_at: string | null
@@ -2094,10 +2138,10 @@ export type Database = {
       }
       productos_bulk_precio_individual: {
         Args: {
-          p_cambios: Json
-          p_usuario_id: string
-          p_motivo?: string
           p_accion?: string
+          p_cambios: Json
+          p_motivo?: string
+          p_usuario_id: string
         }
         Returns: Json
       }
@@ -2137,6 +2181,10 @@ export type Database = {
         Returns: Json
       }
       resumen_turno: { Args: { p_turno_id: string }; Returns: Json }
+      revertir_operacion_precios: {
+        Args: { p_operacion_original_id: string; p_usuario_id: string }
+        Returns: Json
+      }
       rol_actual: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
