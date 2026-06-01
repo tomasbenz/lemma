@@ -11,15 +11,21 @@ import {
   renderParametros,
   fechaCorta,
 } from '../../_lib/formato'
+import type { DetalleOperacionPrecios } from '../_actions/obtener-detalle-precios'
+import { DetallePreciosTable } from './detalle-precios-table'
 
 const TOPE_INICIAL = 50
 
 export function OperacionDetalle({
   operacion,
   productos,
+  detalle,
+  esReversion,
 }: {
   operacion: Operacion
   productos: ProductoResuelto[]
+  detalle: DetalleOperacionPrecios | null
+  esReversion: boolean
 }) {
   const [verTodos, setVerTodos] = useState(false)
 
@@ -62,7 +68,14 @@ export function OperacionDetalle({
         </p>
       </section>
 
-      {/* Afectados */}
+      {/* Afectados: tabla enriquecida con detalle de precios (Fase B) o listado simple */}
+      {detalle && detalle.total_filas > 0 ? (
+        <DetallePreciosTable
+          operacionId={operacion.id}
+          detalle={detalle}
+          esReversion={esReversion}
+        />
+      ) : (
       <section className="space-y-2">
         <h2 className="text-sm font-medium">
           Productos afectados ({operacion.afectados})
@@ -109,6 +122,7 @@ export function OperacionDetalle({
           </>
         )}
       </section>
+      )}
 
       {/* Omitidos */}
       {operacion.cantidad_omitidos > 0 && (

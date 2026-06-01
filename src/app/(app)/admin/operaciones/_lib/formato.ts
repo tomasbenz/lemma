@@ -3,6 +3,7 @@
 
 export const ACCION_LABEL: Record<string, string> = {
   aumento_workspace: 'Aumento de precios (workspace)',
+  reversion_precios: 'Reversión de precios',
   precio_pct: 'Precio (%)',
   precio_fijo: 'Precio fijo',
   cambiar_marca: 'Marca',
@@ -35,6 +36,15 @@ export function renderParametros(accion: string, parametros: unknown): string {
   switch (accion) {
     case 'aumento_workspace':
       return conMotivo('Aumento de precios sobre un filtro')
+    case 'reversion_precios': {
+      const opOrig = p.operacion_original_id
+        ? String(p.operacion_original_id).slice(0, 8)
+        : '?'
+      const motOrig = p.operacion_original_motivo
+        ? ` ("${String(p.operacion_original_motivo)}")`
+        : ''
+      return `Reversión de operación #${opOrig}${motOrig}`
+    }
     case 'precio_pct': {
       const pct = Number(p.pct ?? 0)
       return pct >= 0 ? `Subir ${pct}%` : `Bajar ${Math.abs(pct)}%`
