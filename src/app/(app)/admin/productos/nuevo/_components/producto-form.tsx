@@ -782,6 +782,11 @@ export function ProductoForm({
                       key={field.id}
                       form={form}
                       varianteIndex={index}
+                      defaultVarianteId={
+                        typeof field.varianteId === 'string'
+                          ? field.varianteId
+                          : undefined
+                      }
                       onRemove={() => remove(index)}
                       abrirScanner={abrirScanner}
                     />
@@ -842,11 +847,15 @@ export function ProductoForm({
 function VarianteFields({
   form,
   varianteIndex,
+  defaultVarianteId,
   onRemove,
   abrirScanner,
 }: {
   form: ReturnType<typeof useForm<ProductoFormValues, unknown, ProductoInput>>;
   varianteIndex: number;
+  /** id de DB de la variante existente (undefined si es nueva). Va como
+   *  defaultValue del hidden input para que RHF lo arrastre al submit. */
+  defaultVarianteId?: string;
   onRemove: () => void;
   abrirScanner: (fieldName: ScanTarget) => void;
 }) {
@@ -878,6 +887,7 @@ function VarianteFields({
       */}
       <input
         type="hidden"
+        defaultValue={defaultVarianteId ?? ''}
         {...form.register(`variantes.${varianteIndex}.varianteId`)}
       />
       <div className="flex items-start justify-between gap-2">

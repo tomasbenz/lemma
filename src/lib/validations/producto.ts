@@ -37,7 +37,14 @@ export const varianteSchema = z.object({
   // reserva la propiedad `id` para su key tracking interno: si usáramos `id`
   // acá, el hidden input que lo registra no llegaría al DOM y el id real de
   // la DB no viajaría al submit, rompiendo el pareo en actualizarProducto.
-  varianteId: z.string().uuid().optional(),
+  // El hidden input del form puede llegar como '' (variante nueva, o si RHF no
+  // arrastró el id). Lo normalizamos a undefined ANTES de validar: así '' pasa
+  // como "sin id" (→ INSERT) en vez de romper con "Invalid UUID". Para variantes
+  // existentes el form ya manda el uuid real (defaultValue del hidden input).
+  varianteId: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().uuid().optional()
+  ),
   // Descarta atributos 100% vacíos (clave y valor en blanco) antes de validar:
   // caso típico de "agregué un + Atributo de más". Los a medio llenar siguen
   // rompiendo la validación con el mensaje correcto del atributoSchema.
