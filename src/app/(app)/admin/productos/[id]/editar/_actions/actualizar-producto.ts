@@ -104,6 +104,31 @@ export async function actualizarProducto(
       }
     }
 
+    // Validar que marca/categoría (si vienen) sean de la empresa del usuario,
+    // para no referenciar una marca/categoría de otra empresa (cross-tenant).
+    if (data.marca_id) {
+      const { data: marcaOk } = await supabase
+        .from('marcas')
+        .select('id')
+        .eq('id', data.marca_id)
+        .eq('empresa_id', user.empresa_id)
+        .maybeSingle()
+      if (!marcaOk) {
+        return { ok: false, field: 'marca_id', error: 'La marca no existe' }
+      }
+    }
+    if (data.categoria_id) {
+      const { data: categoriaOk } = await supabase
+        .from('catalogo_categorias')
+        .select('id')
+        .eq('id', data.categoria_id)
+        .eq('empresa_id', user.empresa_id)
+        .maybeSingle()
+      if (!categoriaOk) {
+        return { ok: false, field: 'categoria_id', error: 'La categoría no existe' }
+      }
+    }
+
     // 1. Actualizar datos del producto
     const nuevaImagenUrl = data.imagen_url ?? null
     const imagenVieja = productoExistente.imagen_url

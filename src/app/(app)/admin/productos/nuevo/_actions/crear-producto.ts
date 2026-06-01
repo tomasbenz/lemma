@@ -89,6 +89,34 @@ export async function crearProducto(
       }
     }
 
+    // 3.b Validar que marca/categoría (si vienen) sean de la empresa del usuario.
+    // Evita que un payload manipulado referencie una marca/categoría de otra
+    // empresa (cross-tenant). El bulk RPC valida lo mismo con EXISTS + empresa_id.
+    if (data.marca_id) {
+      const { data: marcaOk } = await supabase
+        .from('marcas')
+        .select('id')
+        .eq('id', data.marca_id)
+        .eq('empresa_id', user.empresa_id)
+        .maybeSingle()
+      if (!marcaOk) {
+        if (data.imagen_url) void borrarImagenProducto(data.imagen_url)
+        return { ok: false, field: 'marca_id', error: 'La marca no existe' }
+      }
+    }
+    if (data.categoria_id) {
+      const { data: categoriaOk } = await supabase
+        .from('catalogo_categorias')
+        .select('id')
+        .eq('id', data.categoria_id)
+        .eq('empresa_id', user.empresa_id)
+        .maybeSingle()
+      if (!categoriaOk) {
+        if (data.imagen_url) void borrarImagenProducto(data.imagen_url)
+        return { ok: false, field: 'categoria_id', error: 'La categoría no existe' }
+      }
+    }
+
     // 4. Insertar producto — empresa_id requerido por multitenant
     const { data: producto, error: errorProducto } = await supabase
       .from('productos')
