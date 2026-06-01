@@ -3,6 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { puedeEditarCatalogo } from '@/lib/auth/permisos'
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export type ActualizarStockInput = Array<{
   varianteId: string
@@ -28,16 +32,17 @@ export async function actualizarStock(
     // Auth
     const user = await getCurrentUser()
     if (!user) return { ok: false, error: 'No autenticado' }
-    if (user.rol === 'vendedor') {
+    if (!puedeEditarCatalogo(user.rol)) {
       return { ok: false, error: 'No tenés permisos para modificar stock' }
     }
+    if (!user.empresa_id) return { ok: false, error: 'Sesión inválida' }
 
     // Validar entrada
     if (!Array.isArray(input) || input.length === 0) {
       return { ok: false, error: 'No hay variantes para actualizar' }
     }
     for (const { varianteId, stock } of input) {
-      if (!varianteId || typeof varianteId !== 'string') {
+      if (typeof varianteId !== 'string' || !UUID_RE.test(varianteId)) {
         return { ok: false, error: 'ID de variante inválido' }
       }
       if (!Number.isInteger(stock) || stock < 0) {
@@ -47,12 +52,14 @@ export async function actualizarStock(
 
     const supabase = await createClient()
 
-    // Traer las variantes para saber a qué productos pertenecen (para revalidar)
+    // Traer las variantes para saber a qué productos pertenecen (para revalidar).
+    // Defense in depth sobre RLS: scopea por empresa.
     const varianteIds = input.map((v) => v.varianteId)
     const { data: variantes, error: errorFetch } = await supabase
       .from('variantes')
       .select('id, producto_id')
       .in('id', varianteIds)
+      .eq('empresa_id', user.empresa_id)
 
     if (errorFetch) {
       console.error('[actualizarStock] Error fetch:', errorFetch)
@@ -69,6 +76,7 @@ export async function actualizarStock(
         .from('variantes')
         .update({ stock })
         .eq('id', varianteId)
+        .eq('empresa_id', user.empresa_id)
 
       if (error) {
         console.error('[actualizarStock] Error update:', error)

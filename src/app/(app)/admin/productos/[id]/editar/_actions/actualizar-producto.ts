@@ -9,6 +9,9 @@ import { borrarImagenProducto } from '@/lib/images/upload'
 import { sufijoSku, type Atributos } from '@/lib/format-atributos'
 import { normalizarCodigoBarras } from '@/lib/codigo-barras/validar'
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export type ActualizarProductoResult =
   | { ok: true; productoId: string }
   | { ok: false; error: string; field?: string }
@@ -52,6 +55,9 @@ export async function actualizarProducto(
     if (!user.empresa_id) {
       return { ok: false, error: 'Sin empresa activa' }
     }
+    if (typeof productoId !== 'string' || !UUID_RE.test(productoId)) {
+      return { ok: false, error: 'Producto no encontrado' }
+    }
 
     // Validar
     const parsed = productoSchema.safeParse(input)
@@ -70,6 +76,7 @@ export async function actualizarProducto(
       .from('productos')
       .select('id, sku_base, imagen_url')
       .eq('id', productoId)
+      .eq('empresa_id', user.empresa_id)
       .single()
 
     if (errorExistente || !productoExistente) {
@@ -82,6 +89,7 @@ export async function actualizarProducto(
         .from('productos')
         .select('id, nombre, activo')
         .eq('sku_base', data.sku_base)
+        .eq('empresa_id', user.empresa_id)
         .neq('id', productoId)
         .maybeSingle()
 
@@ -114,6 +122,7 @@ export async function actualizarProducto(
         track_stock: data.track_stock,
       })
       .eq('id', productoId)
+      .eq('empresa_id', user.empresa_id)
 
     if (errorUpdate) {
       console.error('[actualizarProducto] Error update producto:', errorUpdate)
@@ -141,6 +150,7 @@ export async function actualizarProducto(
       .from('variantes')
       .select('*')
       .eq('producto_id', productoId)
+      .eq('empresa_id', user.empresa_id)
 
     const existentesPorId = new Map(
       (variantesActuales ?? []).map((v) => [v.id, v] as const)
@@ -257,6 +267,7 @@ export async function actualizarProducto(
         .from('variantes')
         .update({ sku_variante: null })
         .in('id', Array.from(idsAFASE1))
+        .eq('empresa_id', user.empresa_id)
       if (errorFase1) {
         console.error('[actualizarProducto] FASE 1 (null sku) error:', errorFase1)
         return {
@@ -288,6 +299,7 @@ export async function actualizarProducto(
             ...codigoBarrasPatch,
           })
           .eq('id', existenteId)
+          .eq('empresa_id', user.empresa_id)
         if (error) {
           console.error('[actualizarProducto] Error update variante:', error)
           const esCodigoDuplicado =
@@ -341,6 +353,7 @@ export async function actualizarProducto(
         .from('variantes')
         .update({ activa: false })
         .in('id', idsADesactivar)
+        .eq('empresa_id', user.empresa_id)
       if (errorDesactivar) {
         console.error('[actualizarProducto] Error desactivando:', errorDesactivar)
         return {
