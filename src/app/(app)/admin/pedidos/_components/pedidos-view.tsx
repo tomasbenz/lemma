@@ -34,6 +34,7 @@ import { EmptyState } from '@/components/app/empty-state'
 import { FechaRelativa } from '@/components/app/fecha-relativa'
 import { BadgeEstado } from '@/components/app/badge-estado'
 import { formatARS } from '@/lib/format'
+import { coincide } from '@/lib/search/fuzzy'
 import { cn } from '@/lib/utils'
 import type { PedidoRow, FiltrosPedidos } from '@/lib/queries/pedidos'
 import type { ClienteCaja } from '@/lib/queries/clientes-caja'
@@ -139,15 +140,23 @@ export function PedidosView({
 
     if (q) {
       lista = lista.filter((p) => {
-        return (
-          String(p.numero).includes(q) ||
-          p.vendedor?.nombre_completo?.toLowerCase().includes(q) ||
-          p.vendedor?.email.toLowerCase().includes(q) ||
-          p.cliente?.razon_social.toLowerCase().includes(q) ||
-          p.cliente?.cuit?.toLowerCase().includes(q) ||
-          p.nombre_cliente_custom?.toLowerCase().includes(q) ||
-          p.nota_interna?.toLowerCase().includes(q)
-        )
+        // Match exacto por número (igual que antes; fuzzy acá sería peligroso)
+        if (String(p.numero).includes(q)) return true
+
+        // Fuzzy (tildes, typos, espacios) sobre los campos de texto.
+        // coincide() filtra sin reordenar → no pisa el sort por columna.
+        const texto = [
+          p.vendedor?.nombre_completo,
+          p.vendedor?.email,
+          p.cliente?.razon_social,
+          p.cliente?.cuit,
+          p.nombre_cliente_custom,
+          p.nota_interna,
+        ]
+          .filter(Boolean)
+          .join(' ')
+
+        return coincide(q, texto)
       })
     }
 

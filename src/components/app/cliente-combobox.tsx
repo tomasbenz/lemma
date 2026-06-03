@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { coincide } from '@/lib/search/fuzzy'
 
 export type ClienteOption = {
   id: string
@@ -70,7 +71,11 @@ export function ClienteCombobox({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[280px] p-0" align="start">
-          <Command>
+          <Command
+            // Filter fuzzy (tildes, typos, espacios) en lugar del default de
+            // cmdk, que no normaliza acentos. value = razon_social + cuit.
+            filter={(value, search) => (coincide(search, value) ? 1 : 0)}
+          >
             <CommandInput placeholder="Buscar cliente..." className="h-9" />
             <CommandList>
               <CommandEmpty>No se encontraron clientes.</CommandEmpty>

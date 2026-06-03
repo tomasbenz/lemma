@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { labelCondIva } from '@/lib/queries/clientes-types'
+import { rankear } from '@/lib/search/fuzzy'
 import type { ClienteCaja } from '@/lib/queries/clientes-caja'
 
 type Props = {
@@ -51,17 +52,13 @@ export function SelectorCliente({
   )
 
   const filtrados = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return clientes.slice(0, 20)
-
-    return clientes
-      .filter((c) => {
-        return (
-          c.razon_social.toLowerCase().includes(q) ||
-          c.cuit?.toLowerCase().includes(q)
-        )
-      })
-      .slice(0, 20)
+    // Fuzzy (tildes, typos, espacios) + orden por relevancia. Con query
+    // vacía rankear devuelve la lista tal cual → top 20 igual que antes.
+    return rankear(
+      clientes,
+      query,
+      (c) => `${c.razon_social} ${c.cuit ?? ''}`
+    ).slice(0, 20)
   }, [query, clientes])
 
   function seleccionar(cliente: ClienteCaja) {
