@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import type { Database } from '@/types/database'
 import { formatAtributos } from '@/lib/format-atributos'
+import { inLotes } from './_helpers'
 
 export type ProductoConVariantes = Database['public']['Tables']['productos']['Row'] & {
   variantes: Database['public']['Tables']['variantes']['Row'][]
@@ -58,7 +59,12 @@ async function obtenerIdsBusquedaFuzzy(
   })
 
   if (error) {
-    console.error('[buscar_productos_ids] Error:', error.message)
+    console.error('[buscar_productos_ids] Error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    })
     return []
   }
 
@@ -146,6 +152,8 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
   if (busqueda.trim()) {
     const user = await getCurrentUser()
     if (!user?.empresa_id) return { productos: [], total: 0 }
+    // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+    const empresaId = user.empresa_id
 
     const rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
     if (!rankedIds || rankedIds.length === 0) {
@@ -154,22 +162,34 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
 
     // Aplicar el resto de filtros sobre los ids fuzzy, preservando el orden
     // de similaridad (la vista no expone `sim`, así que reordenamos en JS).
-    let filtroQuery = supabase
-      .from('productos_con_stock_total')
-      .select('id')
-      .in('id', rankedIds)
-      // Defense in depth: además de RLS, filtra por empresa explícitamente.
-      .eq('empresa_id', user.empresa_id)
-    if (soloActivos) filtroQuery = filtroQuery.eq('activo', true)
-    if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
-    if (marcaId) filtroQuery = filtroQuery.eq('marca_id', marcaId)
-    if (categoriaId) filtroQuery = filtroQuery.eq('categoria_id', categoriaId)
-    if (categoriaAsignada === 'sin') filtroQuery = filtroQuery.is('categoria_id', null)
-    else if (categoriaAsignada === 'con') filtroQuery = filtroQuery.not('categoria_id', 'is', null)
-
-    const { data: survData, error: survError } = await filtroQuery
+    // rankedIds puede traer hasta 1000 ids: .in() con >~390 UUIDs supera el
+    // límite de ~16KB de URL de PostgREST (400 Bad Request) → va en lotes.
+    const { data: survData, error: survError } = await inLotes(
+      rankedIds,
+      (chunk) => {
+        let filtroQuery = supabase
+          .from('productos_con_stock_total')
+          .select('id')
+          .in('id', chunk)
+          // Defense in depth: además de RLS, filtra por empresa explícitamente.
+          .eq('empresa_id', empresaId)
+        if (soloActivos) filtroQuery = filtroQuery.eq('activo', true)
+        if (stockBajo) filtroQuery = filtroQuery.eq('tiene_stock_bajo', true)
+        if (marcaId) filtroQuery = filtroQuery.eq('marca_id', marcaId)
+        if (categoriaId) filtroQuery = filtroQuery.eq('categoria_id', categoriaId)
+        if (categoriaAsignada === 'sin') filtroQuery = filtroQuery.is('categoria_id', null)
+        else if (categoriaAsignada === 'con') filtroQuery = filtroQuery.not('categoria_id', 'is', null)
+        return filtroQuery
+      }
+    )
     if (survError) {
-      console.error('[listarProductos] Error filtro fuzzy:', survError.message)
+      console.error('[listarProductos] Error filtro fuzzy:', {
+        message: survError.message,
+        code: survError.code,
+        details: survError.details,
+        hint: survError.hint,
+        idsCount: rankedIds.length,
+      })
       throw new Error('Error al listar productos')
     }
 
@@ -186,7 +206,13 @@ export async function listarProductos(options: ListarProductosOptions = {}) {
       .in('id', pageIds)
       .eq('empresa_id', user.empresa_id)
     if (rowsError) {
-      console.error('[listarProductos] Error rows fuzzy:', rowsError.message)
+      console.error('[listarProductos] Error rows fuzzy:', {
+        message: rowsError.message,
+        code: rowsError.code,
+        details: rowsError.details,
+        hint: rowsError.hint,
+        idsCount: pageIds.length,
+      })
       throw new Error('Error al listar productos')
     }
 
@@ -309,28 +335,38 @@ export async function listarProductoIdsPorFiltro(
   if (busqueda.trim()) {
     const user = await getCurrentUser()
     if (!user?.empresa_id) return { ids: [], excedeCap: false }
+    // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+    const empresaId = user.empresa_id
 
     const rankedIds = await obtenerIdsBusquedaFuzzy(supabase, busqueda)
     if (!rankedIds || rankedIds.length === 0) {
       return { ids: [], excedeCap: false }
     }
 
-    let q = supabase
-      .from('productos_con_stock_total')
-      .select('id')
-      .in('id', rankedIds)
-      // Defense in depth: además de RLS, filtra por empresa explícitamente.
-      .eq('empresa_id', user.empresa_id)
-    if (soloActivos) q = q.eq('activo', true)
-    if (stockBajo) q = q.eq('tiene_stock_bajo', true)
-    if (marcaId) q = q.eq('marca_id', marcaId)
-    if (categoriaId) q = q.eq('categoria_id', categoriaId)
-    if (categoriaAsignada === 'sin') q = q.is('categoria_id', null)
-    else if (categoriaAsignada === 'con') q = q.not('categoria_id', 'is', null)
-
-    const { data, error } = await q
+    // rankedIds puede traer hasta 1000 ids → .in() en lotes (límite de URL).
+    const { data, error } = await inLotes(rankedIds, (chunk) => {
+      let q = supabase
+        .from('productos_con_stock_total')
+        .select('id')
+        .in('id', chunk)
+        // Defense in depth: además de RLS, filtra por empresa explícitamente.
+        .eq('empresa_id', empresaId)
+      if (soloActivos) q = q.eq('activo', true)
+      if (stockBajo) q = q.eq('tiene_stock_bajo', true)
+      if (marcaId) q = q.eq('marca_id', marcaId)
+      if (categoriaId) q = q.eq('categoria_id', categoriaId)
+      if (categoriaAsignada === 'sin') q = q.is('categoria_id', null)
+      else if (categoriaAsignada === 'con') q = q.not('categoria_id', 'is', null)
+      return q
+    })
     if (error) {
-      console.error('[listarProductoIdsPorFiltro] Error fuzzy:', error.message)
+      console.error('[listarProductoIdsPorFiltro] Error fuzzy:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        idsCount: rankedIds.length,
+      })
       throw new Error('Error al listar ids de productos')
     }
 
@@ -406,16 +442,27 @@ export async function obtenerProductosParaPreview(
 
   const user = await getCurrentUser()
   if (!user?.empresa_id) return []
+  // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+  const empresaId = user.empresa_id
 
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('productos')
-    .select('id, nombre, precio_neto, track_stock, variantes(id, stock, activa, sku_variante)')
-    .in('id', ids)
-    .eq('empresa_id', user.empresa_id)
+  // ids puede traer hasta 1000 → .in() en lotes (límite de ~16KB de URL).
+  const { data, error } = await inLotes(ids, (chunk) =>
+    supabase
+      .from('productos')
+      .select('id, nombre, precio_neto, track_stock, variantes(id, stock, activa, sku_variante)')
+      .in('id', chunk)
+      .eq('empresa_id', empresaId)
+  )
 
   if (error) {
-    console.error('[obtenerProductosParaPreview] Error:', error.message)
+    console.error('[obtenerProductosParaPreview] Error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      idsCount: ids.length,
+    })
     throw new Error('Error al cargar productos para la vista previa')
   }
 
@@ -462,6 +509,8 @@ export async function exportarProductosFilas(
 ): Promise<ProductoFilaExport[]> {
   const user = await getCurrentUser()
   if (!user?.empresa_id) return []
+  // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+  const empresaId = user.empresa_id
 
   const supabase = await createClient()
 
@@ -482,37 +531,65 @@ export async function exportarProductosFilas(
     if (!rankedIds || rankedIds.length === 0) return []
   }
 
-  let agg = supabase
-    .from('productos_con_stock_total')
-    .select('id, sku_base, nombre, marca_nombre, categoria_nombre, precio_neto, track_stock, activo')
-    .eq('empresa_id', user.empresa_id)
+  const armarQueryProductos = (chunkIds: string[] | null) => {
+    let agg = supabase
+      .from('productos_con_stock_total')
+      .select('id, sku_base, nombre, marca_nombre, categoria_nombre, precio_neto, track_stock, activo')
+      .eq('empresa_id', empresaId)
 
-  if (soloActivos) agg = agg.eq('activo', true)
-  if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
-  if (marcaId) agg = agg.eq('marca_id', marcaId)
-  if (categoriaId) agg = agg.eq('categoria_id', categoriaId)
-  if (categoriaAsignada === 'sin') agg = agg.is('categoria_id', null)
-  else if (categoriaAsignada === 'con') agg = agg.not('categoria_id', 'is', null)
-  if (rankedIds) agg = agg.in('id', rankedIds)
+    if (soloActivos) agg = agg.eq('activo', true)
+    if (stockBajo) agg = agg.eq('tiene_stock_bajo', true)
+    if (marcaId) agg = agg.eq('marca_id', marcaId)
+    if (categoriaId) agg = agg.eq('categoria_id', categoriaId)
+    if (categoriaAsignada === 'sin') agg = agg.is('categoria_id', null)
+    else if (categoriaAsignada === 'con') agg = agg.not('categoria_id', 'is', null)
+    if (chunkIds) agg = agg.in('id', chunkIds)
 
-  agg = agg.order('nombre', { ascending: true })
+    return agg.order('nombre', { ascending: true })
+  }
 
-  const { data: prods, error: errProds } = await agg
+  // Con búsqueda, rankedIds puede traer hasta 1000 ids → .in() en lotes
+  // (límite de ~16KB de URL). Cada lote vuelve ordenado, pero el merge no:
+  // se re-ordena por nombre en JS (el export es una planilla por nombre).
+  const { data: prods, error: errProds } = rankedIds
+    ? await inLotes(rankedIds, (chunk) => armarQueryProductos(chunk))
+    : await armarQueryProductos(null)
   if (errProds) {
-    console.error('[exportarProductosFilas] Error productos:', errProds.message)
+    console.error('[exportarProductosFilas] Error productos:', {
+      message: errProds.message,
+      code: errProds.code,
+      details: errProds.details,
+      hint: errProds.hint,
+      idsCount: rankedIds?.length ?? null,
+    })
     throw new Error('Error al exportar productos')
   }
   if (!prods || prods.length === 0) return []
+  if (rankedIds) {
+    prods.sort((a, b) =>
+      (a.nombre as string).localeCompare(b.nombre as string)
+    )
+  }
 
+  // ids = TODOS los productos del filtro (sin búsqueda puede ser el catálogo
+  // entero, ~6600 en Samu) → .in() en lotes obligatorio.
   const ids = prods.map((p) => p.id as string)
-  const { data: variantes, error: errVar } = await supabase
-    .from('variantes')
-    .select('producto_id, sku_variante, atributos, stock, activa, codigo_barras')
-    .in('producto_id', ids)
-    .eq('empresa_id', user.empresa_id)
+  const { data: variantes, error: errVar } = await inLotes(ids, (chunk) =>
+    supabase
+      .from('variantes')
+      .select('producto_id, sku_variante, atributos, stock, activa, codigo_barras')
+      .in('producto_id', chunk)
+      .eq('empresa_id', empresaId)
+  )
 
   if (errVar) {
-    console.error('[exportarProductosFilas] Error variantes:', errVar.message)
+    console.error('[exportarProductosFilas] Error variantes:', {
+      message: errVar.message,
+      code: errVar.code,
+      details: errVar.details,
+      hint: errVar.hint,
+      idsCount: ids.length,
+    })
     throw new Error('Error al exportar variantes')
   }
 

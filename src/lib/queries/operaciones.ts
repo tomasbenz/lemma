@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { inLotes } from './_helpers'
 import type { Json } from '@/types/database'
 
 export type OperacionOmitido = {
@@ -126,13 +127,29 @@ export async function resolverProductosPorIds(
   if (!user?.empresa_id) return []
 
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('productos')
-    .select('id, nombre, sku_base')
-    .in('id', ids.slice(0, 1000))
-    .eq('empresa_id', user.empresa_id)
+  // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+  const empresaId = user.empresa_id
+  // Hasta 1000 ids → .in() en lotes (límite de ~16KB de URL de PostgREST).
+  const { data, error } = await inLotes(ids.slice(0, 1000), (chunk) =>
+    supabase
+      .from('productos')
+      .select('id, nombre, sku_base')
+      .in('id', chunk)
+      .eq('empresa_id', empresaId)
+  )
 
-  if (error || !data) return []
+  if (error || !data) {
+    if (error) {
+      console.error('[resolverProductosPorIds]', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        idsCount: ids.length,
+      })
+    }
+    return []
+  }
   return data.map((p) => ({
     id: p.id,
     nombre: p.nombre,

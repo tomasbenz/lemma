@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { puedeEditarCatalogo } from '@/lib/auth/permisos'
-import { escaparParaOrFilter } from '@/lib/queries/_helpers'
+import { escaparParaOrFilter, inLotes } from '@/lib/queries/_helpers'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -204,14 +204,25 @@ export async function productosParaPreview(
     if (limpios.length === 0) return []
 
     const supabase = await createClient()
-    const { data, error } = await supabase
-      .from(VISTA)
-      .select(COLS)
-      .eq('empresa_id', user.empresa_id)
-      .in('id', limpios)
+    // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+    const empresaId = user.empresa_id
+    // limpios puede traer hasta 1000 ids → .in() en lotes (límite de URL).
+    const { data, error } = await inLotes(limpios, (chunk) =>
+      supabase
+        .from(VISTA)
+        .select(COLS)
+        .eq('empresa_id', empresaId)
+        .in('id', chunk)
+    )
 
     if (error) {
-      console.error('[productosParaPreview]', error.message)
+      console.error('[productosParaPreview]', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        idsCount: limpios.length,
+      })
       return []
     }
     return (data ?? []).map((r) => mapRow(r as Record<string, unknown>))

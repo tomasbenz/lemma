@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { puedeEditarCatalogo } from '@/lib/auth/permisos'
 import { round2 } from '@/lib/cobro/calculos'
+import { partirEnLotes } from '@/lib/queries/_helpers'
 
 const VENTANA_HORAS = 24
 const PRICE_ACCIONES = [
@@ -155,14 +156,21 @@ export async function obtenerDetallePrecios(
     }
 
     // ¿Algún producto fue editado después? (margen 5s por el propio UPDATE)
+    // productoIds puede traer hasta 1000 ids → count en lotes (límite de
+    // ~16KB de URL de PostgREST en .in()) y se suman los parciales.
     const margen = new Date(new Date(op.creado_at).getTime() + 5_000).toISOString()
     const productoIds = filas.map((f) => f.producto_id)
-    const { count: tocados } = await supabase
-      .from('productos')
-      .select('id', { count: 'exact', head: true })
-      .eq('empresa_id', empresaId)
-      .in('id', productoIds)
-      .gt('updated_at', margen)
+    const counts = await Promise.all(
+      partirEnLotes(productoIds).map((lote) =>
+        supabase
+          .from('productos')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .in('id', lote)
+          .gt('updated_at', margen)
+      )
+    )
+    const tocados = counts.reduce((sum, r) => sum + (r.count ?? 0), 0)
     if ((tocados ?? 0) > 0) {
       return {
         ...base,

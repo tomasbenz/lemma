@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { puedeEditarCatalogo } from '@/lib/auth/permisos'
 import { esMontoFinito } from '@/lib/cobro/calculos'
+import { inLotes } from '@/lib/queries/_helpers'
 
 const CAP = 1000
 
@@ -72,18 +73,29 @@ export async function previewImportProductos(
     }
 
     const supabase = await createClient()
+    // Capturado para que el narrowing sobreviva dentro del callback de inLotes.
+    const empresaId = user.empresa_id
     // El producto ya no tiene `categoria` text: tiene marca_id/categoria_id.
     // Traemos los NOMBRES vía embed para mostrarlos en el diff del preview.
-    const { data, error } = await supabase
-      .from('variantes')
-      .select(
-        'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, costo, activo, marca:marcas(nombre), categoria:catalogo_categorias(nombre))'
-      )
-      .in('sku_variante', skus)
-      .eq('empresa_id', user.empresa_id)
+    // Un archivo puede traer hasta 1000 SKUs → .in() en lotes (límite de URL).
+    const { data, error } = await inLotes(skus, (chunk) =>
+      supabase
+        .from('variantes')
+        .select(
+          'sku_variante, stock, activa, codigo_barras, productos!inner(sku_base, nombre, precio_neto, costo, activo, marca:marcas(nombre), categoria:catalogo_categorias(nombre))'
+        )
+        .in('sku_variante', chunk)
+        .eq('empresa_id', empresaId)
+    )
 
     if (error) {
-      console.error('[previewImportProductos]', error.message)
+      console.error('[previewImportProductos]', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        idsCount: skus.length,
+      })
       return { ok: false, error: 'No se pudo cargar el estado actual' }
     }
 
