@@ -1064,10 +1064,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "operaciones_masivas_precio_detalle_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "operaciones_masivas_precio_detalle_operacion_id_fkey"
             columns: ["operacion_id"]
             isOneToOne: false
             referencedRelation: "operaciones_masivas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operaciones_masivas_precio_detalle_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operaciones_masivas_precio_detalle_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_con_stock_total"
             referencedColumns: ["id"]
           },
         ]
@@ -1968,6 +1989,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      buscar_clientes_ids: {
+        Args: { p_query: string; p_umbral?: number }
+        Returns: {
+          cliente_id: string
+          score: number
+        }[]
       }
       buscar_productos_ids: {
         Args: { p_query: string; p_umbral?: number }
