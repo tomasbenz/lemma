@@ -76,8 +76,7 @@ function mapClienteConStats(c: {
  * Rama fuzzy de listarClientes (q > 2 chars): la RPC buscar_clientes_ids
  * (pg_trgm + unaccent sobre razon_social) devuelve ids ordenados por
  * similaridad; CUIT y email se siguen buscando con ilike (substring exacto
- * tiene más sentido para esos campos) y van primero en el ranking — espeja
- * el "substring = score 1" del helper cliente (src/lib/search/fuzzy.ts).
+ * tiene más sentido para esos campos) y van primero en el ranking.
  * El `orden` pedido se ignora: con búsqueda manda la relevancia (misma
  * convención que listarProductos). La paginación corre sobre la lista de
  * ids ya rankeada.

@@ -30,41 +30,80 @@ export type ProductoCaja = Pick<
   stock_total: number
 }
 
+// PostgREST capea en 1000 filas por request, así que el catálogo completo
+// se trae paginando con .range() en loop hasta que un lote venga incompleto.
+// Un .limit(N) hardcoded acá truncaba el catálogo (bug histórico: limit(500)
+// dejaba afuera la mitad alfabética inferior con catálogos grandes).
+const PAGE_SIZE = 1000
+
 /**
  * Lista productos para la pantalla de caja.
  * - Solo productos activos
  * - Solo variantes activas
  * - Ordenados alfabéticamente
- * - Sin paginación (max 500, suficiente para 100-200 productos típicos)
+ * - Paginado con range() en loop: trae TODO el catálogo activo
  */
 export async function listarProductosCaja(): Promise<ProductoCaja[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('productos')
-    .select(
-      `
-      id,
-      nombre,
-      sku_base,
-      precio_neto,
-      imagen_url,
-      track_stock,
-      marca:marcas(nombre),
-      categoria:catalogo_categorias(nombre),
-      variantes(id, atributos, sku_variante, stock, activa, codigo_barras)
-    `
-    )
-    .eq('activo', true)
-    .order('nombre', { ascending: true })
-    .limit(500)
-
-  if (error) {
-    console.error('[listarProductosCaja] Error:', error.message)
-    throw new Error('Error al cargar productos')
+  type Fila = {
+    id: string
+    nombre: string
+    sku_base: string
+    precio_neto: number
+    imagen_url: string | null
+    track_stock: boolean
+    marca: unknown
+    categoria: unknown
+    variantes: {
+      id: string
+      atributos: unknown
+      sku_variante: string | null
+      stock: number | null
+      activa: boolean
+      codigo_barras: string | null
+    }[] | null
   }
 
-  const productos: ProductoCaja[] = (data ?? []).map((p) => {
+  const filas: Fila[] = []
+  let offset = 0
+  let lote: Fila[] = []
+
+  do {
+    const { data, error } = await supabase
+      .from('productos')
+      .select(
+        `
+        id,
+        nombre,
+        sku_base,
+        precio_neto,
+        imagen_url,
+        track_stock,
+        marca:marcas(nombre),
+        categoria:catalogo_categorias(nombre),
+        variantes(id, atributos, sku_variante, stock, activa, codigo_barras)
+      `
+      )
+      .eq('activo', true)
+      .order('nombre', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1)
+
+    if (error) {
+      console.error('[listarProductosCaja] Error página:', {
+        offset,
+        message: error.message,
+        code: error.code,
+      })
+      throw new Error('Error al cargar productos')
+    }
+
+    lote = (data ?? []) as Fila[]
+    filas.push(...lote)
+    offset += PAGE_SIZE
+  } while (lote.length === PAGE_SIZE) // lote lleno → puede haber más
+
+  const productos: ProductoCaja[] = filas.map((p) => {
     const variantesActivas: VarianteCaja[] = (p.variantes ?? [])
       .filter((v) => v.activa && v.sku_variante !== null)
       .map((v) => ({

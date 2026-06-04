@@ -1,98 +1,85 @@
-// Búsqueda fuzzy en el cliente (caja offline, editores de pedido/venta).
-// Puro, sin dependencias. Espeja la normalización del lado server
-// (normalizar_busqueda en SQL): lower + sin tildes + sin espacios.
+// Búsqueda de catálogo en el cliente (caja offline, editores de pedido/venta,
+// selectores de cliente). Puro, sin dependencias.
 //
-// Tolera typos, tildes, mayúsculas y espacios sobrantes. Los espacios se
-// ELIMINAN (no se colapsan): así "abro ch a do ra" → "abrochadora" matchea
-// "abrochadorakangaro...", y "Kangaro o o o o" → "kangarooooo". Sin esto,
-// los trigramas con espacios no aparecen en la versión continua del producto
-// y la similitud cae bajo el umbral.
+// Estrategia: multi-word substring AND — lo que hacen Mercado Libre, WhatsApp
+// y cualquier buscador de catálogo común. El query se normaliza (lower, sin
+// tildes), se tokeniza por espacios, y un item matchea si TODOS los tokens
+// aparecen como substring de su texto buscable (nombre+sku+marca+categoría).
+// Sin scoring por similitud: en un POS, "LAPIZ" tiene que traer TODOS los
+// lápices en orden predecible, no "los más relevantes según trigramas".
+//
+// Trade-off aceptado: typos no matchean ("lapizz" no encuentra "lapiz").
+// Si se necesita tolerancia a typos, agregar una capa fuzzy ENCIMA de esto,
+// no reemplazarlo.
 
-// Umbral de similitud de trigramas. Alineado con el DEFAULT de la RPC
-// buscar_productos_ids (migración 020): bajo (0.12) para tolerar queries
-// cortas/desordenadas tras eliminar espacios en la normalización (019).
-const UMBRAL_DEFAULT = 0.12
-
-/** lower + quita tildes + elimina todos los espacios. */
-export function normalizar(s: string): string {
-  if (!s) return ''
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+/**
+ * Normaliza un texto para búsqueda: lowercase + sin tildes/diacríticos.
+ * NO elimina espacios — los preservamos para tokenizar.
+ */
+export function normalizar(texto: string): string {
+  if (!texto) return ''
+  return texto
     .toLowerCase()
-    .replace(/\s+/g, '')
-}
-
-/** Set de trigramas con padding, sobre el string ya normalizado. */
-function trigramas(s: string): Set<string> {
-  const set = new Set<string>()
-  if (s.length === 0) return set
-  const padded = `  ${s} `
-  for (let i = 0; i < padded.length - 2; i++) {
-    set.add(padded.slice(i, i + 3))
-  }
-  return set
-}
-
-/** Coeficiente de Dice sobre trigramas. Rango 0–1 (1 = idénticos). */
-export function similitudTrigram(a: string, b: string): number {
-  const na = normalizar(a)
-  const nb = normalizar(b)
-  if (na === nb) return na.length === 0 ? 0 : 1
-  const ta = trigramas(na)
-  const tb = trigramas(nb)
-  if (ta.size === 0 || tb.size === 0) return 0
-  let inter = 0
-  for (const t of ta) if (tb.has(t)) inter++
-  return (2 * inter) / (ta.size + tb.size)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remueve diacríticos combinantes
+    .trim()
 }
 
 /**
- * True si `query` matchea `target`.
- * - query vacía → true (no filtra).
- * - query < 3 chars → substring (smart fallback, no degrada SKUs cortos).
- * - includes-first (fast path) → si no, similitud de trigramas >= umbral.
+ * Divide un query en tokens, normalizando primero y filtrando vacíos.
+ * "  Lápiz   Negro  " → ["lapiz", "negro"]
  */
-export function coincide(
+export function tokenizar(query: string): string[] {
+  if (!query) return []
+  return normalizar(query)
+    .split(/\s+/)
+    .filter((t) => t.length > 0)
+}
+
+/**
+ * Filtra items que contengan TODOS los tokens del query como substring del
+ * texto extraído. Si el query es vacío, devuelve todos (sin reordenar; el
+ * caller decide el orden inicial). Con `obtenerNombre`, ordena los matches
+ * por nombre asc (estable y predecible); sin él, mantiene el orden original.
+ */
+export function buscar<T>(
+  items: T[],
   query: string,
-  target: string,
-  umbral = UMBRAL_DEFAULT
-): boolean {
-  const nq = normalizar(query)
-  if (nq.length === 0) return true
-  const nt = normalizar(target)
+  obtenerTexto: (item: T) => string,
+  obtenerNombre?: (item: T) => string
+): T[] {
+  const tokens = tokenizar(query)
 
-  if (nq.length < 3) return nt.includes(nq)
-  if (nt.includes(nq)) return true
-  return similitudTrigram(nq, nt) >= umbral
+  if (tokens.length === 0) return items
+
+  // Match: el texto normalizado del item contiene cada token.
+  const matches = items.filter((item) => {
+    const texto = normalizar(obtenerTexto(item))
+    return tokens.every((t) => texto.includes(t))
+  })
+
+  if (obtenerNombre) {
+    matches.sort((a, b) =>
+      normalizar(obtenerNombre(a)).localeCompare(normalizar(obtenerNombre(b)))
+    )
+  }
+
+  return matches
 }
 
-/** Score de relevancia: 1 si substring, similitud si no, 0 si no matchea. */
-function score(query: string, target: string, umbral: number): number {
-  const nq = normalizar(query)
-  if (nq.length === 0) return 1
-  const nt = normalizar(target)
-  if (nq.length < 3) return nt.includes(nq) ? 1 : 0
-  if (nt.includes(nq)) return 1
-  const sim = similitudTrigram(nq, nt)
-  return sim >= umbral ? sim : 0
-}
-
-/**
- * Filtra + ordena por relevancia descendente. Con query vacía devuelve los
- * items tal cual (sin reordenar). Los que no matchean se excluyen.
- */
+/** @deprecated Use buscar() instead. Wrapper para retro-compatibilidad. */
 export function rankear<T>(
   items: T[],
   query: string,
-  getText: (item: T) => string,
-  umbral = UMBRAL_DEFAULT
+  obtenerTexto: (item: T) => string
 ): T[] {
-  if (normalizar(query).length === 0) return items
+  return buscar(items, query, obtenerTexto)
+}
 
-  return items
-    .map((item) => ({ item, s: score(query, getText(item), umbral) }))
-    .filter((x) => x.s > 0)
-    .sort((a, b) => b.s - a.s)
-    .map((x) => x.item)
+/** @deprecated Use buscar() instead. */
+export function coincide(query: string, texto: string): boolean {
+  const tokens = tokenizar(query)
+  if (tokens.length === 0) return true
+  const t = normalizar(texto)
+  return tokens.every((token) => t.includes(token))
 }
