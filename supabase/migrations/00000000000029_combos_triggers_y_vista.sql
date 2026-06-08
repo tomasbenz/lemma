@@ -158,8 +158,14 @@ CREATE TRIGGER combo_componentes_recompute_trg
 
 -- ----------------------------------------------------------------------------
 -- 4) T3 — Bulk-safe: recompute de combos cuando cambian precios/costos de
---    sus componentes. STATEMENT-level con transition table → un aumento masivo
+--    sus componentes. STATEMENT-level con transition tables → un aumento masivo
 --    de miles de productos recomputa cada combo afectado UNA sola vez.
+--
+--    NOTA Postgres: NO se permite `REFERENCING ... TABLE` junto a `UPDATE OF
+--    <cols>` ("transition tables cannot be specified for triggers with column
+--    lists"). Por eso el trigger se dispara en TODO UPDATE de productos y el
+--    filtro de precio/costo se hace adentro comparando NEW vs OLD (early-exit
+--    rápido si ningún precio_neto/costo cambió → el caso común no paga costo).
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.recompute_combos_de_componentes()
 RETURNS trigger
@@ -169,10 +175,28 @@ AS $function$
 DECLARE
   v_combo_id uuid;
 BEGIN
+  -- Early-exit: si en NINGUNA fila cambió precio_neto ni costo, no hay nada que
+  -- recomputar (el trigger corre en todo UPDATE de productos: nombre, stock vía
+  -- variantes no, activo, etc.). Comparación NEW vs OLD por id.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM nuevos n
+    JOIN viejos vj ON vj.id = n.id
+    WHERE n.precio_neto IS DISTINCT FROM vj.precio_neto
+       OR n.costo       IS DISTINCT FROM vj.costo
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  -- Combos DISTINCT que contienen como componente algún producto cuyo
+  -- precio_neto o costo cambió en este statement.
   FOR v_combo_id IN
     SELECT DISTINCT cc.combo_id
-    FROM public.combo_componentes cc
-    JOIN cambios ch ON ch.id = cc.componente_producto_id
+    FROM nuevos n
+    JOIN viejos vj ON vj.id = n.id
+    JOIN public.combo_componentes cc ON cc.componente_producto_id = n.id
+    WHERE n.precio_neto IS DISTINCT FROM vj.precio_neto
+       OR n.costo       IS DISTINCT FROM vj.costo
   LOOP
     PERFORM public.recomputar_combo(v_combo_id);
   END LOOP;
@@ -182,8 +206,8 @@ $function$;
 
 DROP TRIGGER IF EXISTS productos_recompute_combos_trg ON public.productos;
 CREATE TRIGGER productos_recompute_combos_trg
-  AFTER UPDATE OF precio_neto, costo ON public.productos
-  REFERENCING NEW TABLE AS cambios
+  AFTER UPDATE ON public.productos
+  REFERENCING NEW TABLE AS nuevos OLD TABLE AS viejos
   FOR EACH STATEMENT
   EXECUTE FUNCTION public.recompute_combos_de_componentes();
 
