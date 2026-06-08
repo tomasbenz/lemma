@@ -1,7 +1,7 @@
 // src/app/(app)/caja/_components/caja-view.tsx
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useDeferredValue } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Search, Package, ShoppingCart, WifiOff } from 'lucide-react'
@@ -30,7 +30,7 @@ import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 import type { ProductoCaja, VarianteCaja } from '@/lib/queries/productos-caja'
-import { rankear } from '@/lib/search/fuzzy'
+import { normalizar, buscarPrecomputado } from '@/lib/search/fuzzy'
 import type { CurrentUser } from '@/lib/auth/get-current-user'
 import type { TurnoActivo } from '@/lib/queries/turnos'
 import {
@@ -45,6 +45,23 @@ import { SelectorVariantes } from './selector-variantes'
 import { ModalCobro } from './modal-cobro'
 import { ModalGuardarPedido } from './modal-guardar-pedido'
 import { BannerTurno } from './banner-turno'
+
+// Cantidad de tiles a renderizar cuando NO hay query. Sin cap, el grid montaba
+// los ~5740 productos del catálogo (cada uno con un next/image), lo que volvía
+// /caja lenta tras el fix de paginación. Con query activa se muestran todos los
+// matches (ya filtrados a un número manejable).
+const CAP_SIN_QUERY = 100
+
+// Texto sobre el que se busca un producto: nombre + sku + marca + categoría +
+// (codigo_barras + sku_variante de cada variante). Incluir los códigos de barras
+// permite encontrar un producto tipeando el código en el input (antes solo lo
+// resolvía handleScan vía Enter).
+function obtenerTextoBuscable(p: ProductoCaja): string {
+  const textosVariantes = p.variantes
+    .map((v) => `${v.codigo_barras ?? ''} ${v.sku_variante ?? ''}`)
+    .join(' ')
+  return `${p.nombre} ${p.sku_base} ${p.marca_nombre ?? ''} ${p.categoria_nombre ?? ''} ${textosVariantes}`
+}
 
 type CajaViewProps = {
   user: CurrentUser
@@ -145,6 +162,9 @@ function CajaViewInner({
 }) {
   const router = useRouter()
   const [busqueda, setBusqueda] = useState('')
+  // El input muestra `busqueda` (inmediato); el filtro corre sobre el valor
+  // diferido para que el tipeo no se trabe aunque el filtrado sea pesado.
+  const busquedaDeferred = useDeferredValue(busqueda)
   const [productoSelector, setProductoSelector] = useState<ProductoCaja | null>(
     null
   )
@@ -221,15 +241,28 @@ function CajaViewInner({
     { ignoreInInputs: false, preventDefault: true, enabled: !hayModalAbierto }
   )
 
-  const productosFiltrados = useMemo(
+  // Texto normalizado precomputado UNA vez por catálogo (no por keystroke):
+  // evita ~5740 normalizaciones NFD en cada tecla.
+  const productosConTextoNormalizado = useMemo(
     () =>
-      rankear(
-        productos,
-        busqueda,
-        (p) =>
-          `${p.nombre} ${p.sku_base} ${p.marca_nombre ?? ''} ${p.categoria_nombre ?? ''}`
-      ),
-    [productos, busqueda]
+      productos.map((p) => ({
+        item: p,
+        textoNormalizado: normalizar(obtenerTextoBuscable(p)),
+      })),
+    [productos]
+  )
+
+  const productosFiltrados = useMemo(
+    () => buscarPrecomputado(productosConTextoNormalizado, busquedaDeferred),
+    [productosConTextoNormalizado, busquedaDeferred]
+  )
+
+  // Cap del render solo cuando NO hay query. Con query se muestran todos los
+  // matches (ya filtrados a un número manejable).
+  const hayQuery = busquedaDeferred.trim().length > 0
+  const productosVisibles = useMemo(
+    () => (hayQuery ? productosFiltrados : productos.slice(0, CAP_SIN_QUERY)),
+    [hayQuery, productosFiltrados, productos]
   )
 
   function agregarUnaVariante(
@@ -411,7 +444,7 @@ function CajaViewInner({
             productos no quede tapado por el botón flotante del carrito.
           */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-4 pb-24 lg:pb-4">
-            {productosFiltrados.length === 0 ? (
+            {productosVisibles.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <p className="text-muted-foreground">
                   {busqueda
@@ -420,16 +453,25 @@ function CajaViewInner({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {productosFiltrados.map((producto, index) => (
-                  <ProductoTile
-                    key={producto.id}
-                    producto={producto}
-                    onClick={() => handleProductoClick(producto)}
-                    index={index}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {productosVisibles.map((producto, index) => (
+                    <ProductoTile
+                      key={producto.id}
+                      producto={producto}
+                      onClick={() => handleProductoClick(producto)}
+                      index={index}
+                    />
+                  ))}
+                </div>
+                {!hayQuery && productos.length > CAP_SIN_QUERY && (
+                  <div className="text-center text-sm text-muted-foreground py-4">
+                    Mostrando primeros {CAP_SIN_QUERY} de {productos.length}{' '}
+                    productos. Buscá por nombre, SKU o código de barras para ver
+                    el resto.
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

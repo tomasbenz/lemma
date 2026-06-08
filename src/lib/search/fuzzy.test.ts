@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { normalizar, tokenizar, buscar, rankear, coincide } from './fuzzy'
+import {
+  normalizar,
+  tokenizar,
+  buscar,
+  buscarPrecomputado,
+  rankear,
+  coincide,
+} from './fuzzy'
 
 // ============================================================
 // normalizar
@@ -156,6 +163,39 @@ test('rankear — query vacía devuelve todo sin reordenar', () => {
   const items = [{ n: 'b' }, { n: 'a' }]
   const r = rankear(items, '', (i) => i.n)
   assert.deepEqual(r, items)
+})
+
+// ============================================================
+// buscarPrecomputado — hot-path con texto ya normalizado
+// ============================================================
+
+test('buscarPrecomputado matchea cuando todos los tokens están en el texto normalizado', () => {
+  const items = [
+    { item: { id: '1', nombre: 'LAPIZ NEGRO' }, textoNormalizado: 'lapiz negro lap001 bic' },
+    { item: { id: '2', nombre: 'GOMA' }, textoNormalizado: 'goma de borrar gom001' },
+  ]
+  const r = buscarPrecomputado(items, 'lapiz')
+  assert.equal(r.length, 1)
+  assert.equal(r[0].id, '1')
+})
+
+test('buscarPrecomputado con código de barras incluido en texto', () => {
+  const items = [
+    { item: { id: '1', nombre: 'LAPIZ' }, textoNormalizado: 'lapiz lap001 7798100964607' },
+    { item: { id: '2', nombre: 'GOMA' }, textoNormalizado: 'goma gom001 1234567890123' },
+  ]
+  const r = buscarPrecomputado(items, '7798100964607')
+  assert.equal(r.length, 1)
+  assert.equal(r[0].id, '1')
+})
+
+test('buscarPrecomputado con query vacío devuelve todos', () => {
+  const items = [
+    { item: { id: '1' }, textoNormalizado: 'a' },
+    { item: { id: '2' }, textoNormalizado: 'b' },
+  ]
+  const r = buscarPrecomputado(items, '')
+  assert.equal(r.length, 2)
 })
 
 test('coincide chequea si todos los tokens están en texto', () => {

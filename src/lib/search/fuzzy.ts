@@ -67,6 +67,38 @@ export function buscar<T>(
   return matches
 }
 
+/**
+ * Como buscar(), pero los items vienen con su texto YA normalizado (precomputado
+ * por el caller). Útil cuando el set es grande y se filtra por keystroke:
+ * evita normalizar el texto miles de veces por tecla.
+ *
+ * Cada item es `{ item, textoNormalizado }`. La función devuelve los `item`
+ * crudos que matchean. `tokenizar` ya normaliza el query, así que el match es
+ * consistente con `buscar()` (mismo plegado de tildes/mayúsculas).
+ */
+export function buscarPrecomputado<T>(
+  items: Array<{ item: T; textoNormalizado: string }>,
+  query: string,
+  obtenerNombre?: (item: T) => string
+): T[] {
+  const tokens = tokenizar(query)
+  if (tokens.length === 0) return items.map((x) => x.item)
+
+  const matches = items.filter(({ textoNormalizado }) =>
+    tokens.every((t) => textoNormalizado.includes(t))
+  )
+
+  if (obtenerNombre) {
+    matches.sort((a, b) =>
+      normalizar(obtenerNombre(a.item)).localeCompare(
+        normalizar(obtenerNombre(b.item))
+      )
+    )
+  }
+
+  return matches.map((x) => x.item)
+}
+
 /** @deprecated Use buscar() instead. Wrapper para retro-compatibilidad. */
 export function rankear<T>(
   items: T[],
