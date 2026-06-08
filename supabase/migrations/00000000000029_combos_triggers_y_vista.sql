@@ -266,8 +266,9 @@ SELECT
   p.track_stock,
   p.activo,
   p.created_at,
-  p.es_combo,
-  p.descuento_combo_pct,
+  -- stock_total / tiene_stock_bajo conservan su POSICIÓN original (CREATE OR
+  -- REPLACE VIEW no permite reordenar/renombrar columnas existentes). Las
+  -- columnas NUEVAS (es_combo, descuento_combo_pct) van AL FINAL.
   CASE
     WHEN p.es_combo THEN public.stock_combo(p.id)
     ELSE COALESCE((
@@ -283,7 +284,9 @@ SELECT
       FROM public.variantes v
       WHERE v.producto_id = p.id AND v.activa
     ), 0) <= 5
-  END AS tiene_stock_bajo
+  END AS tiene_stock_bajo,
+  p.es_combo,
+  p.descuento_combo_pct
 FROM public.productos p
 LEFT JOIN public.marcas m ON m.id = p.marca_id
 LEFT JOIN public.catalogo_categorias c ON c.id = p.categoria_id;
