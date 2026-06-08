@@ -1,8 +1,17 @@
 // src/app/(app)/caja/_components/carrito-panel.tsx
 'use client'
 
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Minus, Plus, Trash2, Package, ShoppingCart, Save } from 'lucide-react'
+import {
+  Minus,
+  Plus,
+  Trash2,
+  Package,
+  ShoppingCart,
+  Save,
+  Pencil,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
@@ -12,6 +21,26 @@ import { formatAtributos } from '@/lib/format-atributos'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/app/empty-state'
 import type { ItemCarrito } from '../_hooks/use-carrito'
+import { ModalCambiarPrecio } from './modal-cambiar-precio'
+
+/**
+ * Online reactivo: arranca de navigator.onLine y escucha online/offline.
+ * Editar precio es una mutación de catálogo que requiere conexión.
+ */
+function useOnline(): boolean {
+  const [online, setOnline] = useState(true)
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    update()
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [])
+  return online
+}
 
 type CarritoPanelProps = {
   items: ItemCarrito[]
@@ -28,6 +57,7 @@ type CarritoPanelProps = {
   onGuardarPedido: () => void
   onDescuentoValorChange: (valor: number) => void
   onDescuentoModoChange: (modo: 'porcentaje' | 'monto') => void
+  onCambiarPrecio: (productoId: string, precioNuevo: number) => void
   puedeCobrarDirecto: boolean
 }
 
@@ -46,9 +76,11 @@ export function CarritoPanel({
   onGuardarPedido,
   onDescuentoValorChange,
   onDescuentoModoChange,
+  onCambiarPrecio,
   puedeCobrarDirecto,
 }: CarritoPanelProps) {
   const vacio = items.length === 0
+  const offline = !useOnline()
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -99,8 +131,10 @@ export function CarritoPanel({
               <CarritoItem
                 key={item.varianteId}
                 item={item}
+                offline={offline}
                 onCantidadChange={(c) => onCantidadChange(item.varianteId, c)}
                 onRemove={() => onRemove(item.varianteId)}
+                onCambiarPrecio={onCambiarPrecio}
               />
             ))}
           </ul>
@@ -243,13 +277,18 @@ export function CarritoPanel({
 
 function CarritoItem({
   item,
+  offline,
   onCantidadChange,
   onRemove,
+  onCambiarPrecio,
 }: {
   item: ItemCarrito
+  offline: boolean
   onCantidadChange: (cantidad: number) => void
   onRemove: () => void
+  onCambiarPrecio: (productoId: string, precioNuevo: number) => void
 }) {
+  const [modalPrecioOpen, setModalPrecioOpen] = useState(false)
   const subtotalItem = item.precioUnitarioNeto * item.cantidad
   const varianteLabel = formatAtributos(item.atributos) || null
   const enMaximo = item.trackStock && item.cantidad >= item.stockDisponible
@@ -333,9 +372,22 @@ function CarritoItem({
 
             {/* Subtotal */}
             <div className="text-right">
-              <p className="text-xs text-muted-foreground font-numeric">
-                {formatARS(item.precioUnitarioNeto)} c/u
-              </p>
+              <div className="flex items-center justify-end gap-1">
+                <p className="text-xs text-muted-foreground font-numeric">
+                  {formatARS(item.precioUnitarioNeto)} c/u
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setModalPrecioOpen(true)}
+                  disabled={offline}
+                  title={offline ? 'Sin conexión' : 'Cambiar precio'}
+                  aria-label="Cambiar precio"
+                  className="size-7 text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+              </div>
               <p className="text-sm font-semibold font-numeric">
                 {formatARS(subtotalItem)}
               </p>
@@ -349,6 +401,18 @@ function CarritoItem({
           )}
         </div>
       </div>
+
+      <ModalCambiarPrecio
+        open={modalPrecioOpen}
+        onOpenChange={setModalPrecioOpen}
+        productoId={item.productoId}
+        productoNombre={item.productoNombre}
+        precioActual={item.precioUnitarioNeto}
+        offline={offline}
+        onCambioOk={(precioNuevo) =>
+          onCambiarPrecio(item.productoId, precioNuevo)
+        }
+      />
     </li>
   )
 }

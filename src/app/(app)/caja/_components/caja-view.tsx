@@ -497,6 +497,7 @@ function CajaViewInner({
             onGuardarPedido={handleGuardarPedido}
             onDescuentoValorChange={carrito.setDescuentoValor}
             onDescuentoModoChange={carrito.setDescuentoModo}
+            onCambiarPrecio={carrito.actualizarPrecioProducto}
             puedeCobrarDirecto={puedeCobrarDirecto}
           />
         </aside>
@@ -529,6 +530,7 @@ function CajaViewInner({
             onGuardarPedido={handleGuardarPedido}
             onDescuentoValorChange={carrito.setDescuentoValor}
             onDescuentoModoChange={carrito.setDescuentoModo}
+            onCambiarPrecio={carrito.actualizarPrecioProducto}
             puedeCobrarDirecto={puedeCobrarDirecto}
           />
         </SheetContent>

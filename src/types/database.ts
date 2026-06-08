@@ -2004,6 +2004,16 @@ export type Database = {
           sim: number
         }[]
       }
+      cambiar_precio_producto_caja: {
+        Args: {
+          p_precio_nuevo: number
+          p_producto_id: string
+          p_razon: string
+          p_usuario_id: string
+          p_venta_id?: string
+        }
+        Returns: Json
+      }
       cerrar_turno: {
         Args: {
           p_nota_cierre?: string

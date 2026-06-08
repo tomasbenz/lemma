@@ -1,6 +1,8 @@
 // Helpers de presentación para operaciones masivas (listado + detalle).
 // Puros, sin React ni datos.
 
+import { formatARS } from '@/lib/format'
+
 export const ACCION_LABEL: Record<string, string> = {
   aumento_workspace: 'Aumento de precios (workspace)',
   reversion_precios: 'Reversión de precios',
@@ -14,6 +16,7 @@ export const ACCION_LABEL: Record<string, string> = {
   stock_fijar: 'Fijar stock',
   precio_individual: 'Precio (individual)',
   stock_individual: 'Stock (individual)',
+  cambio_precio_caja: 'Cambio de precio (caja)',
   import: 'Importación Excel',
 }
 
@@ -74,6 +77,12 @@ export function renderParametros(accion: string, parametros: unknown): string {
       return 'Ajuste individual de precios (fila por fila)'
     case 'stock_individual':
       return conMotivo('Ajuste individual de stock (fila por fila)')
+    case 'cambio_precio_caja': {
+      const anterior = Number(p.precio_anterior ?? 0)
+      const nuevo = Number(p.precio_nuevo ?? 0)
+      const base = `${formatARS(anterior)} → ${formatARS(nuevo)}`
+      return p.razon ? `${base} · ${String(p.razon)}` : base
+    }
     case 'import':
       return 'Importación / actualización desde Excel'
     default:

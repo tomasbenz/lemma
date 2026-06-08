@@ -146,6 +146,23 @@ export function useCarrito() {
     []
   )
 
+  const actualizarPrecioProducto = useCallback(
+    (productoId: string, precioNuevo: number) => {
+      // Scope = producto entero: actualiza TODAS las líneas del carrito que sean
+      // variantes del mismo producto (precio_neto vive en productos, no en
+      // variantes). Mantiene la venta en curso consistente con el precio nuevo.
+      setEstado((prev) => ({
+        ...prev,
+        items: prev.items.map((i) =>
+          i.productoId === productoId
+            ? { ...i, precioUnitarioNeto: precioNuevo }
+            : i
+        ),
+      }))
+    },
+    []
+  )
+
   const removerItem = useCallback((varianteId: string) => {
     setEstado((prev) => ({
       ...prev,
@@ -199,6 +216,7 @@ export function useCarrito() {
     hidratado,
     agregarItem,
     actualizarCantidad,
+    actualizarPrecioProducto,
     removerItem,
     limpiar,
     setDescuentoValor,
