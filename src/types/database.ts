@@ -2050,6 +2050,10 @@ export type Database = {
         }
         Returns: Json
       }
+      eliminar_producto: {
+        Args: { p_id: string; p_razon: string; p_usuario_id: string }
+        Returns: Json
+      }
       es_admin: { Args: never; Returns: boolean }
       es_admin_estricto: { Args: never; Returns: boolean }
       es_superadmin: { Args: never; Returns: boolean }

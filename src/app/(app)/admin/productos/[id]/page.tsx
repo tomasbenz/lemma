@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatARS, formatNumber, formatFechaRelativa } from '@/lib/format'
 import { formatAtributos } from '@/lib/format-atributos'
 import { CambiarEstadoButton } from './_components/cambiar-estado-button'
+import { EliminarProductoButton } from './_components/eliminar-producto-button'
 import { AjustarStockDialog } from '../_components/ajustar-stock-dialog'
 
 type Params = Promise<{ id: string }>
@@ -126,6 +127,7 @@ export default async function ProductoDetallePage({
                 productoNombre={producto.nombre}
                 activo={producto.activo}
               />
+              <EliminarProductoButton productoId={producto.id} />
               <Button asChild>
                 <Link href={`/admin/productos/${producto.id}/editar`}>
                   <Pencil className="size-4 mr-2" />
