@@ -37,6 +37,37 @@ export async function cambiarEstadoProducto(
     }
 
     const supabase = await createClient()
+
+    // Pre-check D3 (mig 029): no se puede desactivar un producto que es
+    // componente de un combo activo. El trigger T4 igual bloquea el UPDATE,
+    // pero acá damos el mensaje claro sin depender del texto crudo de Postgres.
+    if (nuevoEstado === false) {
+      const { data: comboMatch } = await supabase
+        .from('combo_componentes')
+        .select(
+          'combo:productos!combo_componentes_combo_id_fkey!inner(nombre, activo)'
+        )
+        .eq('componente_producto_id', productoId)
+        .eq('empresa_id', user.empresa_id)
+        .eq('combo.activo', true)
+        .limit(1)
+        .maybeSingle()
+
+      if (comboMatch) {
+        const comboRel = comboMatch.combo as
+          | { nombre: string }
+          | { nombre: string }[]
+          | null
+        const nombre = Array.isArray(comboRel)
+          ? comboRel[0]?.nombre
+          : comboRel?.nombre
+        return {
+          ok: false,
+          error: `No se puede desactivar este producto porque es componente del combo "${nombre ?? '—'}". Eliminá o desarmá el combo primero.`,
+        }
+      }
+    }
+
     // Defense in depth sobre RLS: además del id, scopea por empresa.
     const { error } = await supabase
       .from('productos')

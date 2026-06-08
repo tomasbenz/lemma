@@ -54,17 +54,23 @@ export async function eliminarProducto(input: {
   revalidatePath(`/admin/productos/${input.productoId}`)
   revalidatePath('/admin/operaciones')
 
-  // 5. Parse response del RPC
+  // 5. Parse response del RPC. Desde mig 029 el RPC puede devolver un shape de
+  // rechazo {ok:false, error} (p. ej. el producto es componente de un combo
+  // activo), además del shape de éxito {ok:true, modo, ventas, operacion_id}.
   const result = data as {
     ok: boolean
-    modo: 'hard' | 'soft'
-    ventas: number
-    operacion_id: string
+    error?: string
+    modo?: 'hard' | 'soft'
+    ventas?: number
+    operacion_id?: string
+  }
+  if (result.ok === false) {
+    return { ok: false, error: result.error ?? 'No se pudo eliminar el producto' }
   }
   return {
     ok: true,
-    modo: result.modo,
-    ventas: result.ventas,
-    operacion_id: result.operacion_id,
+    modo: result.modo!,
+    ventas: result.ventas!,
+    operacion_id: result.operacion_id!,
   }
 }

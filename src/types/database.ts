@@ -423,6 +423,82 @@ export type Database = {
           },
         ]
       }
+      combo_componentes: {
+        Row: {
+          cantidad: number
+          combo_id: string
+          componente_producto_id: string
+          componente_variante_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad: number
+          combo_id: string
+          componente_producto_id: string
+          componente_variante_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad?: number
+          combo_id?: string
+          componente_producto_id?: string
+          componente_variante_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combo_componentes_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_componentes_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "productos_con_stock_total"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_componentes_componente_producto_id_fkey"
+            columns: ["componente_producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_componentes_componente_producto_id_fkey"
+            columns: ["componente_producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_con_stock_total"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_componentes_componente_variante_id_fkey"
+            columns: ["componente_variante_id"]
+            isOneToOne: false
+            referencedRelation: "variantes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_componentes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracion: {
         Row: {
           codigo_postal: string | null
@@ -1176,8 +1252,10 @@ export type Database = {
           created_at: string
           descripcion_corta: string | null
           descripcion_larga: string | null
+          descuento_combo_pct: number | null
           destacado: boolean
           empresa_id: string
+          es_combo: boolean
           id: string
           imagen_url: string | null
           imagenes: string[]
@@ -1202,8 +1280,10 @@ export type Database = {
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null
+          descuento_combo_pct?: number | null
           destacado?: boolean
           empresa_id: string
+          es_combo?: boolean
           id?: string
           imagen_url?: string | null
           imagenes?: string[]
@@ -1228,8 +1308,10 @@ export type Database = {
           created_at?: string
           descripcion_corta?: string | null
           descripcion_larga?: string | null
+          descuento_combo_pct?: number | null
           destacado?: boolean
           empresa_id?: string
+          es_combo?: boolean
           id?: string
           imagen_url?: string | null
           imagenes?: string[]
@@ -1695,7 +1777,9 @@ export type Database = {
           categoria_nombre: string | null
           created_at: string | null
           descripcion_corta: string | null
+          descuento_combo_pct: number | null
           empresa_id: string | null
+          es_combo: boolean | null
           id: string | null
           imagen_url: string | null
           marca_id: string | null
@@ -2040,6 +2124,29 @@ export type Database = {
         }
         Returns: Json
       }
+      combo_precio_costo: {
+        Args: { p_combo_id: string }
+        Returns: Record<string, unknown>
+      }
+      crear_combo: {
+        Args: {
+          p_componentes: Json
+          p_descuento_pct: number
+          p_nombre: string
+          p_sku_base: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      editar_combo: {
+        Args: {
+          p_combo_id: string
+          p_componentes: Json
+          p_descuento_pct: number
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       editar_pedido: {
         Args: {
           p_ip?: string
@@ -2210,6 +2317,7 @@ export type Database = {
         }
         Returns: Json
       }
+      recomputar_combo: { Args: { p_combo_id: string }; Returns: undefined }
       registrar_login: {
         Args: { p_ip?: unknown; p_user_agent?: string }
         Returns: undefined
@@ -2308,6 +2416,7 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      stock_combo: { Args: { p_combo_id: string }; Returns: number }
       unaccent: { Args: { "": string }; Returns: string }
       ventas_totales_filtrados: {
         Args: {
