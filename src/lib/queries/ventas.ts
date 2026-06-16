@@ -61,6 +61,18 @@ export type ListarVentasOptions = {
 export async function listarVentas(options: ListarVentasOptions = {}) {
   const supabase = await createClient()
 
+  // Defense in depth (F-01): además del security_invoker de la vista, filtramos
+  // por empresa_id del usuario. Sin empresa_id (superadmin sin impersonar)
+  // devolvemos vacío, mismo criterio que obtenerVenta.
+  const user = await getCurrentUser()
+  if (!user?.empresa_id) {
+    return {
+      ventas: [] as VentaListado[],
+      total: 0,
+      totales: { cantidad: 0, montoTotal: 0, unidadesVendidas: 0 },
+    }
+  }
+
   const {
     desde,
     hasta,
@@ -119,6 +131,7 @@ export async function listarVentas(options: ListarVentasOptions = {}) {
     `,
       { count: 'exact' }
     )
+    .eq('empresa_id', user.empresa_id)
 
   if (desde) query = query.gte('created_at', desde)
   if (hasta) query = query.lte('created_at', hasta)
