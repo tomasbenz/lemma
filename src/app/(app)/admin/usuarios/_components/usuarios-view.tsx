@@ -69,7 +69,7 @@ import {
   resetearPassword,
 } from '../_actions/usuarios-actions'
 
-type UserRole = 'admin' | 'vendedor' | 'superadmin'
+type UserRole = 'admin' | 'vendedor' | 'gerente' | 'superadmin'
 
 function generarPassword(): string {
   const lower = 'abcdefghijkmnopqrstuvwxyz'
@@ -99,6 +99,8 @@ function rolLabel(rol: UserRole): string {
       return 'Admin'
     case 'vendedor':
       return 'Vendedor'
+    case 'gerente':
+      return 'Gerente'
   }
 }
 
@@ -109,6 +111,9 @@ function rolBadgeClass(rol: UserRole): string {
     case 'admin':
       return 'border-primary/40 bg-primary/10 text-primary'
     case 'vendedor':
+      return 'border-border text-muted-foreground'
+    case 'gerente':
+      // Reusa el estilo de vendedor hasta que gerente tenga estilo propio.
       return 'border-border text-muted-foreground'
   }
 }
