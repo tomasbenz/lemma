@@ -39,7 +39,10 @@ export function OfflineSyncTrigger({ userId }: OfflineSyncTriggerProps) {
   const syncing = useRef(false)
   const wasOnline = useRef(isOnline)
 
-  async function attemptSync(reason: string) {
+  // incluirCatalogo: cuando es false, solo se sincronizan los pedidos en cola
+  // (que ya se autogatean si la cola está vacía). El sync periódico lo usa
+  // para no traer el catálogo si su TTL en IndexedDB todavía no venció.
+  async function attemptSync(reason: string, incluirCatalogo = true) {
     if (syncing.current) return
     if (!isOnline) return
 
@@ -49,23 +52,25 @@ export function OfflineSyncTrigger({ userId }: OfflineSyncTriggerProps) {
       // catálogo lee del server hacia IndexedDB.
       // pedidos lee de IndexedDB hacia el server.
       const [catalogResult, ordersResult] = await Promise.all([
-        syncCatalogFromServer(userId),
+        incluirCatalogo ? syncCatalogFromServer(userId) : Promise.resolve(null),
         syncOrdersFromQueue(),
       ])
 
-      if (!catalogResult.ok) {
-        console.warn(
-          '[sync-trigger]',
-          reason,
-          '→ catálogo falló:',
-          catalogResult.error
-        )
-      } else {
-        console.info(
-          '[sync-trigger]',
-          reason,
-          `→ catálogo OK (${catalogResult.productosCount} productos, ${catalogResult.clientesCount} clientes)`
-        )
+      if (catalogResult) {
+        if (!catalogResult.ok) {
+          console.warn(
+            '[sync-trigger]',
+            reason,
+            '→ catálogo falló:',
+            catalogResult.error
+          )
+        } else {
+          console.info(
+            '[sync-trigger]',
+            reason,
+            `→ catálogo OK (${catalogResult.productosCount} productos, ${catalogResult.clientesCount} clientes)`
+          )
+        }
       }
 
       // Si sincronizamos pedidos, mostrar toast a la vendedora
@@ -137,11 +142,17 @@ export function OfflineSyncTrigger({ userId }: OfflineSyncTriggerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline])
 
-  // Efecto 3: sync periódico cada 5 min
+  // Efecto 3: sync periódico cada 5 min.
+  // El catálogo solo se trae si su TTL en IndexedDB venció (debeSincronizar);
+  // los pedidos en cola se intentan siempre (se autogatean si la cola está
+  // vacía). Así el tick periódico no pega al server cuando no hay nada nuevo.
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (!isOnline) return
-      void attemptSync('periodic')
+      void (async () => {
+        const debe = await debeSincronizar()
+        void attemptSync('periodic', debe)
+      })()
     }, PERIODIC_SYNC_INTERVAL_MS)
 
     return () => clearInterval(intervalId)

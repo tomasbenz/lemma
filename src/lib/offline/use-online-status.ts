@@ -6,24 +6,26 @@
 // aunque no haya internet detrás, o si el router está sin uplink. Para POS
 // en Avellaneda con cortes de luz/internet, eso es un caso REAL.
 //
-// Estrategia híbrida:
-// 1. `navigator.onLine` como señal rápida (cambios instantáneos)
-// 2. Ping a /api/ping cada 30s para confirmar (cambios más lentos pero reales)
-// 3. Si dos pings seguidos fallan → consideramos offline
-// 4. Cuando vuelve a responder → online inmediato
+// Estrategia event-driven (sin polling):
+// 1. `navigator.onLine` como señal rápida e inicial (cambios instantáneos).
+// 2. Un único ping a /api/ping al montar (solo si navigator.onLine es true)
+//    para confirmar que detrás del Wi-Fi hay internet de verdad.
+// 3. Un ping puntual cada vez que el browser dispara el evento `online`
+//    (confirma conectividad real al recuperar conexión).
+// 4. En el evento `offline` marcamos isOnline=false directo, sin pingear
+//    (no tiene sentido pingear si el SO ya nos dice que no hay red).
 //
-// Nota: el hook tarda hasta 60s en detectar que está offline (2 pings fallidos
-// consecutivos a 30s cada uno). Para reactividad inmediata en operaciones
-// críticas como guardar pedido, los componentes detectan el error de red
-// directamente (try/catch del fetch) y encolan offline.
+// La conectividad real solo cambia cuando el SO dispara online/offline, así
+// que NO hay polling recurrente: pollear entre eventos era puro desperdicio
+// de Edge Requests. Para reactividad inmediata en operaciones críticas como
+// guardar pedido, los componentes detectan el error de red directamente
+// (try/catch del fetch) y encolan offline (ver modal-guardar-pedido.tsx).
 
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-const PING_INTERVAL_MS = 30_000 // 30 segundos
 const PING_TIMEOUT_MS = 5_000 // si tarda más de 5s, falló
-const PING_FAILS_BEFORE_OFFLINE = 2 // 2 fallos seguidos = offline
 
 type OnlineStatus = {
   isOnline: boolean
@@ -57,45 +59,37 @@ export function useOnlineStatus(): OnlineStatus {
     lastSuccessfulPing: null,
   }))
 
-  const failsRef = useRef(0)
-
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     let cancelled = false
 
-    async function checkConnection() {
+    async function confirmarConexion() {
       const ok = await pingServer()
       if (cancelled) return
 
       if (ok) {
-        failsRef.current = 0
-        setStatus((prev) => {
-          if (prev.isOnline) {
-            return { ...prev, lastSuccessfulPing: Date.now() }
-          }
-          return { isOnline: true, lastSuccessfulPing: Date.now() }
+        setStatus({
+          isOnline: true,
+          lastSuccessfulPing: Date.now(),
         })
       } else {
-        failsRef.current += 1
-        if (failsRef.current >= PING_FAILS_BEFORE_OFFLINE) {
-          setStatus((prev) => {
-            if (!prev.isOnline) return prev
-            return { ...prev, isOnline: false }
-          })
-        }
+        setStatus((prev) => {
+          if (!prev.isOnline) return prev
+          return { ...prev, isOnline: false }
+        })
       }
     }
 
-    checkConnection()
-
-    const intervalId = setInterval(checkConnection, PING_INTERVAL_MS)
+    // Ping único al montar, solo si el SO dice que hay red.
+    if (navigator.onLine) {
+      void confirmarConexion()
+    }
 
     const handleOnline = () => {
-      void checkConnection()
+      void confirmarConexion()
     }
     const handleOffline = () => {
-      failsRef.current = PING_FAILS_BEFORE_OFFLINE
       setStatus((prev) => {
         if (!prev.isOnline) return prev
         return { ...prev, isOnline: false }
@@ -107,7 +101,6 @@ export function useOnlineStatus(): OnlineStatus {
 
     return () => {
       cancelled = true
-      clearInterval(intervalId)
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
